@@ -1,0 +1,3582 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Camera Rental demo - Chụp ảnh đẹp, thuê máy chuyên nghiệp</title>
+
+  <!-- Tailwind CSS & Lucide Icons CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Outfit', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Premium Styling Tokens */
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #fef3c7 0%, #fce7f3 25%, #ddd6fe 50%, #fbcfe8 75%, #fed7aa 100%);
+      background-size: 400% 400%;
+      animation: gradientBG 18s ease infinite;
+      background-attachment: fixed;
+      min-height: 100vh;
+      color: #1f2937;
+      scroll-behavior: smooth;
+    }
+
+    /* Stretch calendar picker indicator to 100% of invisible date inputs */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      color: transparent !important;
+      background: transparent !important;
+      cursor: pointer !important;
+      z-index: 100 !important;
+    }
+
+    @keyframes gradientBG {
+      0% {
+        background-position: 0% 50%;
+      }
+
+      50% {
+        background-position: 100% 50%;
+      }
+
+      100% {
+        background-position: 0% 50%;
+      }
+    }
+
+    .glass-light {
+      background: rgba(255, 255, 255, 0.25);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 4px 16px 0 rgba(255, 255, 255, 0.05), inset 0 1px 0 0 rgba(255, 255, 255, 0.3);
+    }
+
+    .glass-strong {
+      background: rgba(255, 255, 255, 0.60);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      box-shadow: 0 8px 32px 0 rgba(255, 255, 255, 0.2), inset 0 1px 0 0 rgba(255, 255, 255, 0.6);
+    }
+
+    .glass-card {
+      background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.3));
+      backdrop-filter: blur(24px);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 8px 32px 0 rgba(255, 255, 255, 0.15), inset 0 1px 0 0 rgba(255, 255, 255, 0.5);
+      border-radius: 1.5rem;
+    }
+
+    .fade-in {
+      animation: fadeIn 0.4s ease-out forwards;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .btn-primary {
+      background: linear-gradient(to right, #ec4899, #8b5cf6);
+      color: white;
+      box-shadow: 0 4px 20px -2px rgba(236, 72, 153, 0.4);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 28px 0 rgba(236, 72, 153, 0.6);
+      filter: brightness(1.05);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(236, 72, 153, 0.3);
+      border-radius: 99px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(236, 72, 153, 0.5);
+    }
+
+    input:hover,
+    select:hover,
+    textarea:hover {
+      background: #fdf2f8 !important;
+      border-color: #ec4899 !important;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      background: #ffffff !important;
+      border-color: #ec4899 !important;
+      box-shadow: 0 0 0 4px rgba(236, 72, 153, 0.15) !important;
+    }
+
+    @keyframes alertPulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+        color: inherit;
+      }
+
+      50% {
+        transform: scale(1.02);
+        color: #ec4899;
+      }
+    }
+
+    .alert-blink {
+      animation: alertPulse 1.5s infinite;
+      font-weight: 700;
+    }
+  </style>
+</head>
+
+<body class="antialiased">
+
+  <!-- DYNAMIC ERROR BANNER -->
+  <div id="demo-error-banner" style="display: none;"
+    class="fixed top-0 left-0 w-full bg-red-600 text-white z-[999999] p-4 font-mono text-xs shadow-lg">
+    <div class="flex justify-between items-start max-w-7xl mx-auto">
+      <div>
+        <p class="font-black text-sm mb-1">⚠️ PHÁT HIỆN LỖI HỆ THỐNG DEMO (JSERROR):</p>
+        <pre id="demo-error-msg"
+          class="whitespace-pre-wrap font-semibold bg-red-800 p-3 rounded-lg border border-red-500 max-h-40 overflow-auto mt-2"></pre>
+      </div>
+      <button onclick="document.getElementById('demo-error-banner').style.display='none'"
+        class="bg-black/30 px-3 py-1.5 rounded-xl font-bold hover:bg-black/50 transition-colors ml-4">Đóng [X]</button>
+    </div>
+  </div>
+
+  <!-- FIXED HEADER NAVBAR -->
+  <header id="main-header"
+    class="glass-strong fixed top-0 left-0 w-full z-[100] border-b border-white/20 transition-transform duration-300">
+    <div class="container mx-auto px-4 sm:px-6 md:px-8 py-3.5 flex items-center justify-between">
+
+      <!-- Brand Logo Section -->
+      <div class="flex items-center gap-3">
+        <div class="p-2 rounded-2xl bg-gradient-to-br from-pink-400/30 to-purple-400/30 backdrop-blur-sm shadow-sm">
+          <i data-lucide="camera" class="h-7 w-7 text-pink-600"></i>
+        </div>
+        <div>
+          <h1 id="header-logo-text"
+            class="text-xl sm:text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent leading-none">
+            Camera Rental demo</h1>
+          <p class="text-[10px] sm:text-xs text-gray-500/70 font-semibold tracking-wide mt-0.5">Camera Rental</p>
+        </div>
+      </div>
+
+      <!-- Center Swapper & Socials / Hotline Controls -->
+      <div class="flex items-center gap-6">
+        <!-- Floating Simulator Swapper -->
+        <div class="flex glass-light rounded-full p-1 gap-1 border border-white/30 shadow-inner">
+          <button onclick="switchView('customer')" id="btn-customer"
+            class="px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 bg-white shadow-md text-pink-600">
+            Customer view
+          </button>
+          <button onclick="switchView('admin')" id="btn-admin"
+            class="px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 hover:bg-white/40 text-gray-600">
+            Admin Dashboard
+          </button>
+        </div>
+
+        <!-- Desktop Quick Info (Hidden on Mobile) -->
+        <div class="hidden md:flex items-center gap-6 border-l border-white/30 pl-6">
+          <a href="tel:0917435128"
+            class="flex items-center gap-2 hover:text-pink-400 transition-colors font-semibold text-pink-600">
+            <i data-lucide="phone" class="w-5 h-5 text-pink-400"></i>
+            <span
+              class="text-lg font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">0917435128</span>
+          </a>
+
+          <!-- Social links -->
+          <div class="flex items-center gap-3">
+            <a href="https://web.facebook.com/hungcut.04/" target="_blank" class="hover:scale-110 transition-transform">
+              <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/facebook.svg" alt="Facebook"
+                class="w-6 h-6 opacity-80 hover:opacity-100 filter invert-[28%] sepia-[75%] saturate-[4500%] hue-rotate-[320deg] brightness-[95%] contrast-[105%]">
+            </a>
+            <a href="#" target="_blank" class="hover:scale-110 transition-transform">
+              <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/instagram.svg" alt="Instagram"
+                class="w-6 h-6 opacity-80 hover:opacity-100 filter invert-[28%] sepia-[75%] saturate-[4500%] hue-rotate-[320deg] brightness-[95%] contrast-[105%]">
+            </a>
+            <a href="#" target="_blank" class="hover:scale-110 transition-transform">
+              <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/tiktok.svg" alt="TikTok"
+                class="w-6 h-6 opacity-80 hover:opacity-100 filter invert-[28%] sepia-[75%] saturate-[4500%] hue-rotate-[320deg] brightness-[95%] contrast-[105%]">
+            </a>
+          </div>
+        </div>
+
+        <!-- Mobile Toggle Menu Button -->
+        <button onclick="toggleMobileMenu()"
+          class="md:hidden flex items-center justify-center p-2 rounded-xl bg-white/30 text-pink-600 hover:bg-white/50 transition">
+          <i id="mobile-toggle-icon" data-lucide="menu" class="w-6 h-6"></i>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Mobile Dropdown Menu -->
+    <div id="mobile-menu"
+      class="hidden md:hidden border-t border-white/10 px-6 py-4 space-y-4 bg-white/60 backdrop-blur-lg">
+      <a href="tel:0917435128"
+        class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-white/80 text-pink-600 font-bold border border-pink-100 shadow-sm">
+        <i data-lucide="phone" class="w-5 h-5 text-pink-500"></i>
+        <span>Hotline: 0917435128</span>
+      </a>
+      <div class="flex flex-col items-center gap-2 pt-2">
+        <span class="text-xs text-gray-500 font-bold uppercase tracking-wider">Theo dõi chúng tôi tại:</span>
+        <div class="flex items-center gap-6 pt-1">
+          <a href="https://web.facebook.com/hungcut.04/" target="_blank"
+            class="hover:scale-115 transition-transform"><img
+              src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/facebook.svg" alt="Facebook"
+              class="w-7 h-7"></a>
+          <a href="#" target="_blank" class="hover:scale-115 transition-transform"><img
+              src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/instagram.svg" alt="Instagram"
+              class="w-7 h-7"></a>
+          <a href="#" target="_blank" class="hover:scale-115 transition-transform"><img
+              src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/tiktok.svg" alt="TikTok"
+              class="w-7 h-7"></a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==========================================
+       CUSTOMER VIEW CONTAINER
+       ========================================== -->
+  <main id="view-customer" class="fade-in pt-28 pb-20 space-y-20">
+
+    <!-- Hero Header Banner Section -->
+    <section class="container mx-auto px-4 max-w-7xl">
+      <div class="max-w-4xl mx-auto text-center space-y-6">
+
+        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-light border border-white/30 mb-2">
+          <i data-lucide="sparkles" class="h-4 w-4 text-pink-500 animate-pulse"></i>
+          <span class="text-xs sm:text-sm font-semibold text-gray-800">Chụp ảnh đẹp, thuê máy chuyên nghiệp</span>
+        </div>
+
+        <h2 class="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-none text-gray-800">
+          <span class="bg-gradient-to-r from-pink-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">Ghi lại
+            khoảnh khắc</span><br>
+          <span class="text-gray-800">của riêng bạn</span>
+        </h2>
+
+        <p class="text-base sm:text-lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed font-medium">
+          Ghi lại khoảnh khắc theo cách của bạn! Trải nghiệm dịch vụ thuê máy ảnh chuyên nghiệp, dành cho mọi ai yêu
+          nhiếp ảnh và muốn kể câu chuyện của chính mình qua ống kính.
+        </p>
+
+        <div class="flex flex-col sm:flex-row gap-4 justify-center pt-4 max-w-md mx-auto">
+          <button onclick="scrollToSelector('#booking-section')"
+            class="btn-primary w-full sm:w-auto px-8 py-4 rounded-2xl font-bold text-sm shadow-lg flex items-center justify-center gap-2">
+            Đặt thuê ngay <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </button>
+          <button onclick="scrollToSelector('#story-section')"
+            class="w-full sm:w-auto px-8 py-4 rounded-2xl bg-white/40 hover:bg-white/70 border border-white/40 text-gray-700 text-sm font-bold transition-all flex items-center justify-center gap-2">
+            Tìm hiểu thêm
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Sleek Benefits Block -->
+    <section class="py-12 border-y border-white/10 bg-white/20">
+      <div class="container mx-auto px-4 max-w-7xl">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 justify-center">
+
+          <div class="text-center space-y-3 flex flex-col items-center">
+            <div class="inline-flex p-4 rounded-2xl bg-white/50 border border-white/20 shadow-sm text-pink-500">
+              <i data-lucide="shield" class="h-6 w-6"></i>
+            </div>
+            <h3 class="font-bold text-gray-800 text-sm sm:text-base">Bảo hành toàn diện</h3>
+            <p class="text-xs sm:text-sm text-gray-500 font-medium">Máy móc được kiểm tra kỹ lưỡng</p>
+          </div>
+
+          <div class="text-center space-y-3 flex flex-col items-center">
+            <div class="inline-flex p-4 rounded-2xl bg-white/50 border border-white/20 shadow-sm text-pink-500">
+              <i data-lucide="clock" class="h-6 w-6"></i>
+            </div>
+            <h3 class="font-bold text-gray-800 text-sm sm:text-base">Giao nhận nhanh</h3>
+            <p class="text-xs sm:text-sm text-gray-500 font-medium">Tại Hà Nội</p>
+          </div>
+
+          <div class="text-center space-y-3 flex flex-col items-center">
+            <div class="inline-flex p-4 rounded-2xl bg-white/50 border border-white/20 shadow-sm text-pink-500">
+              <i data-lucide="headset" class="h-6 w-6"></i>
+            </div>
+            <h3 class="font-bold text-gray-800 text-sm sm:text-base">Hỗ trợ tận tình</h3>
+            <p class="text-xs sm:text-sm text-gray-500 font-medium">Tư vấn sử dụng miễn phí</p>
+          </div>
+
+          <div class="text-center space-y-3 flex flex-col items-center">
+            <div class="inline-flex p-4 rounded-2xl bg-white/50 border border-white/20 shadow-sm text-pink-500">
+              <i data-lucide="banknote" class="h-6 w-6"></i>
+            </div>
+            <h3 class="font-bold text-gray-800 text-sm sm:text-base">Giá cả hợp lý</h3>
+            <p class="text-xs sm:text-sm text-gray-500 font-medium">Ưu đãi khách hàng thân thiết</p>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- INLINE PUBLIC BOOKING WIZARD SECTION -->
+    <section id="booking-section" class="container mx-auto px-4 max-w-7xl">
+      <div class="text-center mb-12 space-y-3">
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-800 tracking-tight">
+          <span class="bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">Chọn máy ảnh phù hợp
+            với bạn</span>
+        </h2>
+        <p class="text-sm sm:text-base text-gray-600 font-medium max-w-xl mx-auto">
+          Đa dạng dòng máy từ cơ bản đến chuyên nghiệp, phù hợp với mọi nhu cầu chụp ảnh
+        </p>
+      </div>
+
+      <!-- Public Booking Main Wizard Wrapper -->
+      <div class="glass-card p-6 sm:p-10 max-w-5xl mx-auto border border-white">
+
+        <!-- STEP INDICATOR NAVIGATOR -->
+        <div
+          class="flex items-center justify-between max-w-xl mx-auto relative px-4 mb-10 text-[10px] sm:text-xs font-black uppercase tracking-wider text-gray-400">
+          <div class="absolute left-6 right-6 top-4 h-0.5 bg-gray-200 -z-10"></div>
+          <div id="wizard-progress-bar"
+            class="absolute left-6 top-4 h-0.5 bg-pink-500 -z-10 transition-all duration-500" style="width: 0%;"></div>
+
+          <div class="flex flex-col items-center gap-2">
+            <div id="step-bubble-dates"
+              class="w-9 h-9 rounded-full bg-pink-600 text-white flex items-center justify-center shadow-lg transition-all duration-300 font-bold">
+              1</div>
+            <span class="text-pink-600 font-bold">Thời gian</span>
+          </div>
+
+          <div class="flex flex-col items-center gap-2">
+            <div id="step-bubble-select"
+              class="w-9 h-9 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center transition-all duration-300 font-bold">
+              2</div>
+            <span>Chọn máy</span>
+          </div>
+
+          <div class="flex flex-col items-center gap-2">
+            <div id="step-bubble-details"
+              class="w-9 h-9 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center transition-all duration-300 font-bold">
+              3</div>
+            <span>Thông tin</span>
+          </div>
+
+          <div class="flex flex-col items-center gap-2">
+            <div id="step-bubble-confirm"
+              class="w-9 h-9 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center transition-all duration-300 font-bold">
+              4</div>
+            <span>Xác nhận</span>
+          </div>
+        </div>
+
+        <div class="min-h-[300px]">
+          <!-- WIZARD STEP 1: DATES SELECTOR -->
+          <div id="wizard-step-dates" class="fade-in max-w-3xl mx-auto">
+            <!-- Toggle Logic Wrapper -->
+            <div class="flex justify-center mb-6">
+              <div
+                class="bg-slate-100/80 p-1.5 rounded-[1.8rem] flex gap-1 w-full max-w-md border border-slate-200/50 shadow-inner">
+                <button id="btn-mode-hourly" onclick="setBookingMode('hourly')"
+                  class="flex-1 flex items-center justify-center gap-2.5 py-3.5 rounded-[1.4rem] text-sm font-black uppercase tracking-wider transition-all duration-300 bg-white shadow-md text-[#df52cc] scale-[1.01]">
+                  Theo giờ
+                </button>
+                <button id="btn-mode-daily" onclick="setBookingMode('daily')"
+                  class="flex-1 flex items-center justify-center gap-2.5 py-3.5 rounded-[1.4rem] text-sm font-black uppercase tracking-wider transition-all duration-300 text-slate-500 hover:text-slate-800">
+                  Theo ngày
+                </button>
+              </div>
+            </div>
+
+            <div
+              class="bg-[#FAF5F6] p-6 sm:p-10 rounded-[2.5rem] border border-pink-100/40 shadow-[0_20px_50px_-12px_rgba(244,63,94,0.06)] space-y-8">
+
+              <!-- Centered Title -->
+              <div class="text-center space-y-3">
+                <h3 class="text-base sm:text-lg font-black text-slate-800 tracking-tight">Chọn ngày bắt đầu và ngày kết
+                  thúc thuê máy</h3>
+
+                <!-- Centered Legend Indicators -->
+                <div
+                  class="flex items-center justify-center gap-4 sm:gap-6 text-[11px] sm:text-xs font-bold text-slate-500">
+                  <div class="flex items-center gap-1.5">
+                    <span class="w-3 h-3 rounded-full bg-[#df52cc]"></span>
+                    <span>Ngày nhận máy</span>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <span class="w-3 h-3 rounded-full bg-[#f87171]"></span>
+                    <span>Ngày trả máy</span>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <span class="w-3 h-3 rounded-full bg-slate-300"></span>
+                    <span>Không khả dụng</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Inputs row -->
+              <div class="grid md:grid-cols-2 gap-8 pt-2">
+
+                <!-- Left Column: Ngày bắt đầu -->
+                <div class="space-y-2">
+                  <label class="text-xs font-black text-slate-700 ml-4 block">Ngày bắt đầu</label>
+                  <div class="flex gap-2 relative">
+                    <!-- Pickup Date Button -->
+                    <div class="flex-grow">
+                      <div id="btn-pickup-date" onclick="openCustomCalendar('pickup'); event.stopPropagation();"
+                        class="w-full px-5 py-3.5 bg-[#FFFDF9] hover:bg-[#fff6f6] border border-pink-100 rounded-full transition-all font-black text-sm text-slate-800 shadow-sm cursor-pointer flex items-center gap-3">
+                        <i data-lucide="calendar" class="w-4 h-4 text-slate-800"></i>
+                        <span id="txt-pickup-date">Ngày nhận</span>
+                      </div>
+                    </div>
+                    <!-- Pickup Time Dropdown -->
+                    <div id="pickup-time-container" class="w-28 sm:w-32 shrink-0 relative">
+                      <div id="btn-pickup-time" onclick="toggleCustomTimeDropdown('pickup'); event.stopPropagation();"
+                        class="w-full px-4 py-3.5 bg-[#FAF5F6]/40 hover:bg-[#FFFDF9] border border-pink-100 rounded-full transition-all font-black text-xs text-slate-600 shadow-sm cursor-pointer flex items-center justify-between">
+                        <span id="txt-pickup-time">Giờ nhận</span>
+                        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
+                      </div>
+                      <div id="dropdown-pickup-time"
+                        class="hidden absolute top-[105%] right-0 z-50 bg-white border border-slate-100 shadow-2xl rounded-2xl max-h-48 overflow-y-auto w-full sm:w-[150%] p-1.5 grid grid-cols-2 gap-1"
+                        onclick="event.stopPropagation()">
+                        <!-- Loaded dynamically -->
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Right Column: Ngày kết thúc -->
+                <div class="space-y-2">
+                  <label class="text-xs font-black text-slate-700 ml-4 block">Ngày kết thúc</label>
+                  <div class="flex gap-2 relative">
+                    <!-- Return Date Button -->
+                    <div class="flex-grow">
+                      <div id="btn-return-date" onclick="openCustomCalendar('return'); event.stopPropagation();"
+                        class="w-full px-5 py-3.5 bg-[#FFFDF9] hover:bg-[#fff6f6] border border-pink-100 rounded-full transition-all font-black text-sm text-slate-800 shadow-sm cursor-pointer flex items-center gap-3">
+                        <i data-lucide="calendar" class="w-4 h-4 text-slate-800"></i>
+                        <span id="txt-return-date">Ngày trả</span>
+                      </div>
+                    </div>
+                    <!-- Return Time Dropdown -->
+                    <div id="return-time-container" class="w-28 sm:w-32 shrink-0 relative">
+                      <div id="btn-return-time" onclick="toggleCustomTimeDropdown('return'); event.stopPropagation();"
+                        class="w-full px-4 py-3.5 bg-[#FAF5F6]/40 hover:bg-[#FFFDF9] border border-pink-100 rounded-full transition-all font-black text-xs text-slate-600 shadow-sm cursor-pointer flex items-center justify-between">
+                        <span id="txt-return-time">Giờ trả</span>
+                        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
+                      </div>
+                      <div id="dropdown-return-time"
+                        class="hidden absolute top-[105%] right-0 z-50 bg-white border border-slate-100 shadow-2xl rounded-2xl max-h-48 overflow-y-auto w-full sm:w-[150%] p-1.5 grid grid-cols-2 gap-1"
+                        onclick="event.stopPropagation()">
+                        <!-- Loaded dynamically -->
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Bottom actions row -->
+              <div class="flex items-center gap-4 pt-6 border-t border-pink-100/40">
+                <button onclick="window.history.back() || location.reload()"
+                  class="px-6 py-3.5 bg-[#FFFDF9] hover:bg-[#fff6f6] border border-pink-100 rounded-full font-black text-sm text-slate-800 shadow-sm transition active:scale-[0.98] flex items-center justify-center gap-2">
+                  <i data-lucide="arrow-left" class="w-4 h-4 text-pink-500"></i> Quay lại
+                </button>
+                <button onclick="validateStepDates()"
+                  class="flex-grow py-3.5 bg-gradient-to-r from-[#df52cc] to-pink-500 hover:from-pink-500 hover:to-pink-600 rounded-full font-black text-sm text-white shadow-md transition active:scale-[0.99] text-center">
+                  Tiếp tục
+                </button>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- WIZARD STEP 2: CAMERAS CATALOG GRID -->
+          <div id="wizard-step-select" class="hidden fade-in space-y-6">
+
+            <div class="flex items-center mb-2">
+              <button onclick="gotoWizardStep('dates')"
+                class="px-6 py-2.5 bg-[#FFFDF9] hover:bg-[#fff6f6] border border-pink-100 rounded-full font-black text-xs text-slate-800 shadow-sm transition active:scale-[0.98] flex items-center gap-2">
+                <i data-lucide="arrow-left" class="w-4 h-4 text-pink-500"></i> Quay lại chọn Thời gian
+              </button>
+            </div>
+
+            <!-- Catalog filters bar -->
+            <div
+              class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/30 p-4 rounded-3xl border border-white/20 mb-6">
+              <div class="flex flex-wrap gap-2 items-center">
+                <span class="text-xs text-gray-500 font-bold uppercase tracking-wider px-2">Hãng sản xuất:</span>
+                <select id="cust-brand-filter" onchange="filterWizardCameras()"
+                  class="bg-white/70 border rounded-xl px-4 py-2 text-xs font-bold text-gray-700 focus:outline-none">
+                  <option value="all">Tất cả hãng</option>
+                  <option value="Fujifilm">Fujifilm</option>
+                  <option value="Sony">Sony</option>
+                  <option value="Canon">Canon</option>
+                  <option value="Ricoh">Ricoh</option>
+                </select>
+
+                <select id="cust-cat-filter" onchange="filterWizardCameras()"
+                  class="bg-white/70 border rounded-xl px-4 py-2 text-xs font-bold text-gray-700 focus:outline-none">
+                  <option value="all">Tất cả loại</option>
+                  <option value="Mirrorless">Mirrorless</option>
+                  <option value="Compact">Compact / Film</option>
+                  <option value="Lens">Ống kính (Lens)</option>
+                </select>
+              </div>
+
+              <!-- Search input -->
+              <div class="relative w-full md:w-64">
+                <input type="text" id="wizard-search-input" oninput="filterWizardCameras()"
+                  placeholder="Tìm dòng máy..."
+                  class="w-full bg-white/60 border rounded-xl py-2.5 pl-9 pr-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-pink-300">
+                <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+              </div>
+            </div>
+
+            <!-- Cameras Grid -->
+            <div id="wizard-cameras-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- WIZARD STEP 3: CUSTOMER CONTACT FORM -->
+          <div id="wizard-step-details" class="hidden fade-in space-y-6">
+            <div class="max-w-2xl mx-auto space-y-6">
+
+              <div class="p-5 bg-pink-500/10 border border-pink-100 rounded-2xl flex items-center gap-4">
+                <div id="details-camera-preview-img"
+                  class="w-16 h-16 rounded-xl border bg-cover bg-center shadow-inner"></div>
+                <div>
+                  <p class="text-[9px] font-bold text-pink-600 uppercase tracking-widest">Thiết bị đang chọn</p>
+                  <h4 id="details-camera-name" class="text-lg font-black text-gray-800 leading-tight">Camera Model</h4>
+                  <p id="details-camera-days-cost" class="text-xs font-semibold text-gray-500">Thời gian thuê: --</p>
+                </div>
+              </div>
+
+              <div class="grid sm:grid-cols-2 gap-4">
+                <div class="space-y-1.5">
+                  <label class="text-xs font-bold text-gray-500 px-2 flex items-center gap-1"><i data-lucide="user"
+                      class="w-3.5 h-3.5 text-pink-500"></i> Họ & tên khách hàng *</label>
+                  <input type="text" id="form-cust-name" placeholder="Họ và Tên đầy đủ"
+                    class="w-full bg-white/70 border border-pink-100 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:outline-none">
+                </div>
+                <div class="space-y-1.5">
+                  <label class="text-xs font-bold text-gray-500 px-2 flex items-center gap-1"><i data-lucide="phone"
+                      class="w-3.5 h-3.5 text-pink-500"></i> Số điện thoại *</label>
+                  <input type="tel" id="form-cust-phone" placeholder="Số điện thoại liên hệ"
+                    class="w-full bg-white/70 border border-pink-100 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:outline-none">
+                </div>
+              </div>
+
+              <div class="grid sm:grid-cols-2 gap-4">
+                <div class="space-y-1.5">
+                  <label class="text-xs font-bold text-gray-500 px-2 flex items-center gap-1"><i data-lucide="mail"
+                      class="w-3.5 h-3.5 text-pink-500"></i> Địa chỉ Email *</label>
+                  <input type="email" id="form-cust-email" placeholder="example@gmail.com"
+                    class="w-full bg-white/70 border border-pink-100 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:outline-none">
+                </div>
+                <div class="space-y-1.5">
+                  <label class="text-xs font-bold text-gray-500 px-2 flex items-center gap-1"><i
+                      data-lucide="shield-check" class="w-3.5 h-3.5 text-pink-500"></i> Phương thức cọc máy *</label>
+                  <select id="form-cust-deposit"
+                    class="w-full bg-white/70 border border-pink-100 rounded-xl px-4 py-3.5 text-xs font-bold text-gray-700 focus:outline-none">
+                    <option value="cccd-taisan" selected>CCCD + Tài sản tương đương (Laptop, xe máy,...)</option>
+                    <option value="cccd-80">CCCD + Cọc tiền mặt 80% giá trị máy</option>
+                    <option value="100">Cọc tiền mặt 100% giá trị máy ảnh</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="space-y-1.5">
+                <label class="text-xs font-bold text-gray-500 px-2 flex items-center gap-1"><i
+                    data-lucide="message-square" class="w-3.5 h-3.5 text-pink-500"></i> Ghi chú bổ sung (nếu có)</label>
+                <textarea id="form-cust-notes" rows="2"
+                  placeholder="Cần mượn thêm filter màu, chân máy, phụ kiện tháo lắp..."
+                  class="w-full bg-white/70 border border-pink-100 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:outline-none"></textarea>
+              </div>
+
+              <div class="flex items-center gap-4 pt-6 border-t border-pink-100/40">
+                <button onclick="gotoWizardStep('select')"
+                  class="px-6 py-3.5 bg-[#FFFDF9] hover:bg-[#fff6f6] border border-pink-100 rounded-full font-black text-sm text-slate-800 shadow-sm transition active:scale-[0.98] flex items-center justify-center gap-2">
+                  <i data-lucide="arrow-left" class="w-4 h-4 text-pink-500"></i> Quay lại
+                </button>
+                <button onclick="submitDetailsForm()"
+                  class="flex-grow py-3.5 bg-gradient-to-r from-[#df52cc] to-pink-500 hover:from-pink-500 hover:to-pink-600 rounded-full font-black text-sm text-white shadow-md transition active:scale-[0.99] text-center">
+                  Tiếp tục
+                </button>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- WIZARD STEP 4: ORDER CONFIRMATION & INVOICE -->
+          <div id="wizard-step-confirm" class="hidden fade-in space-y-6">
+
+            <div class="text-center space-y-1 pb-4">
+              <h3 class="text-xl font-bold text-gray-800">Xác nhận đơn đặt thuê & Thanh toán</h3>
+              <p class="text-xs text-red-500 font-bold alert-blink">Vui lòng chuyển khoản cọc và gửi bill về Fanpage để
+                hoàn tất xác minh đơn!</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8 items-start max-w-4xl mx-auto">
+              <!-- Left Column: Invoice Overview -->
+              <div class="glass-card p-6 border space-y-4 text-xs font-semibold text-gray-600">
+                <h4 class="text-sm font-black text-gray-800 border-b pb-2 uppercase tracking-wider">Tóm tắt đơn hàng
+                </h4>
+
+                <div class="space-y-2">
+                  <div class="flex justify-between border-b pb-2">
+                    <span>Họ tên khách hàng:</span>
+                    <span id="confirm-name" class="text-gray-800 font-bold">N/A</span>
+                  </div>
+                  <div class="flex justify-between border-b pb-2">
+                    <span>Số điện thoại:</span>
+                    <span id="confirm-phone" class="text-gray-800 font-bold">N/A</span>
+                  </div>
+                  <div class="flex justify-between border-b pb-2">
+                    <span>Email:</span>
+                    <span id="confirm-email" class="text-gray-800 font-bold">N/A</span>
+                  </div>
+                  <div class="flex justify-between border-b pb-2">
+                    <span>Dòng máy ảnh:</span>
+                    <span id="confirm-camera" class="text-gray-800 font-bold">N/A</span>
+                  </div>
+                  <div class="flex justify-between border-b pb-2">
+                    <span>Thời gian nhận:</span>
+                    <span id="confirm-time-start" class="text-gray-800 font-bold">N/A</span>
+                  </div>
+                  <div class="flex justify-between border-b pb-2">
+                    <span>Thời gian trả:</span>
+                    <span id="confirm-time-end" class="text-gray-800 font-bold">N/A</span>
+                  </div>
+                  <div class="flex justify-between border-b pb-2">
+                    <span>Phương thức cọc:</span>
+                    <span id="confirm-deposit" class="text-gray-800 font-bold">N/A</span>
+                  </div>
+                  <div id="confirm-notes-box" class="flex flex-col gap-1 border-b pb-2 hidden">
+                    <span>Ghi chú bổ sung:</span>
+                    <span id="confirm-notes"
+                      class="italic text-gray-500 font-medium pl-3 border-l-2 border-pink-300">N/A</span>
+                  </div>
+                  <div class="flex justify-between pt-2 text-sm font-black text-pink-600">
+                    <span>Tổng tiền thanh toán:</span>
+                    <span id="confirm-total-amount">0đ</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right Column: Transfer details & QR Code -->
+              <div class="space-y-4">
+
+                <div class="bg-white p-4 rounded-3xl border shadow-sm flex flex-col items-center justify-center">
+                  <div id="confirm-qr-wrapper"
+                    class="w-48 h-48 bg-cover bg-center rounded-2xl shadow-inner border border-gray-100"></div>
+                  <p class="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-3">Quét QR chuyển khoản
+                    VietQR tự động</p>
+                </div>
+
+                <div class="glass-card p-5 border text-xs font-semibold text-gray-600 space-y-2">
+                  <p class="text-[9px] text-gray-400 font-bold uppercase tracking-widest pb-1 border-b">Chi tiết tài
+                    khoản shop</p>
+                  <p>Ngân hàng: <span id="confirm-bank-name" class="text-pink-600 font-bold">N/A</span></p>
+                  <p>Số tài khoản: <span id="confirm-bank-acc" class="text-pink-600 font-bold">N/A</span></p>
+                  <p>Chủ tài khoản: <span id="confirm-bank-owner" class="text-pink-600 font-bold">N/A</span></p>
+                  <div class="bg-gray-150 p-2.5 rounded-xl border border-dashed mt-2">
+                    <p class="text-[10px] text-gray-500">Cú pháp chuyển khoản:</p>
+                    <p id="confirm-syntax" class="text-sm font-bold text-gray-800 select-all mt-0.5">N/A</p>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <div class="flex items-center gap-4 pt-8 border-t border-pink-100/40 max-w-4xl mx-auto">
+              <button onclick="gotoWizardStep('details')"
+                class="px-6 py-3.5 bg-[#FFFDF9] hover:bg-[#fff6f6] border border-pink-100 rounded-full font-black text-sm text-slate-800 shadow-sm transition active:scale-[0.98] flex items-center justify-center gap-2">
+                <i data-lucide="arrow-left" class="w-4 h-4 text-pink-500"></i> Quay lại
+              </button>
+              <button onclick="finalizeBookingRequest()"
+                class="flex-grow py-3.5 bg-gradient-to-r from-[#df52cc] to-pink-500 hover:from-pink-500 hover:to-pink-600 rounded-full font-black text-sm text-white shadow-md transition active:scale-[0.99] text-center flex items-center justify-center gap-2">
+                Xác nhận & Gửi yêu cầu <i data-lucide="check" class="w-5 h-5"></i>
+              </button>
+            </div>
+
+          </div>
+
+          <!-- SUCCESS RESULT CARD -->
+          <div id="wizard-step-success" class="hidden fade-in text-center py-10 space-y-6 max-w-xl mx-auto">
+            <div
+              class="w-20 h-20 rounded-full bg-green-500 text-white flex items-center justify-center text-4xl mx-auto shadow-lg shadow-green-200 animate-bounce">
+              ✓
+            </div>
+
+            <div class="space-y-2">
+              <h4 class="text-3xl font-black text-gray-800">Đặt thuê thành công!</h4>
+              <p class="text-gray-500 text-sm font-medium max-w-md mx-auto">Yêu cầu đặt thuê máy của bạn đã được lưu lại
+                thành công trên hệ thống CMS Demo. Shop sẽ sớm liên hệ xác nhận!</p>
+            </div>
+
+            <div
+              class="bg-gray-50 border p-5 rounded-2xl text-left space-y-1.5 text-xs text-gray-600 font-bold shadow-inner">
+              <p>Mã đơn hàng: <span id="success-order-id" class="text-pink-600">#N/A</span></p>
+              <p>Thiết bị: <span id="success-order-camera" class="text-gray-800 font-black">N/A</span></p>
+              <p>Khách hàng: <span id="success-order-cust" class="text-gray-800 font-black">N/A</span></p>
+              <p>Thời gian: <span id="success-order-time" class="text-gray-800">N/A</span></p>
+              <p>Cọc máy: <span id="success-order-deposit" class="text-gray-800">N/A</span></p>
+              <p>Doanh thu: <span id="success-order-total" class="text-green-600 text-sm font-black">N/A</span></p>
+            </div>
+
+            <button onclick="resetWizard()"
+              class="btn-primary px-8 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider">Đặt đơn mới</button>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Sleek Photo Gallery Block -->
+    <section class="py-20 bg-gradient-to-b from-transparent via-pink-500/5 to-transparent">
+      <div class="container mx-auto px-4 max-w-6xl space-y-10">
+        <div class="text-center space-y-3">
+          <h2 class="text-3xl font-extrabold text-gray-800 tracking-tight">
+            <span class="bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">Những khoảnh khắc
+              đẹp từ khách hàng</span>
+          </h2>
+          <p class="text-sm sm:text-base text-gray-600 font-medium max-w-xl mx-auto">
+            Hơn 500+ khách hàng đã tin tưởng và tạo ra những bức ảnh tuyệt vời
+          </p>
+        </div>
+
+        <div class="space-y-6">
+          <div id="customer-photos-grid" class="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
+            <!-- Rendered by JS -->
+          </div>
+
+          <div class="flex items-center justify-center gap-4">
+            <button id="btn-gallery-prev" onclick="changeGalleryPage(-1)"
+              class="px-4 py-2 text-xs font-bold rounded-xl glass-light border-white/30 text-gray-700 hover:bg-white/60 transition flex items-center gap-1 disabled:opacity-50">
+              <i data-lucide="chevron-left" class="w-4 h-4"></i> Trước
+            </button>
+
+            <div id="gallery-pagination-dots" class="flex items-center gap-2">
+              <!-- Dots rendered by JS -->
+            </div>
+
+            <button id="btn-gallery-next" onclick="changeGalleryPage(1)"
+              class="px-4 py-2 text-xs font-bold rounded-xl glass-light border-white/30 text-gray-700 hover:bg-white/60 transition flex items-center gap-1 disabled:opacity-50">
+              Sau <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <div class="text-center pt-4">
+            <button onclick="window.open('#', '_blank')"
+              class="btn-primary px-8 py-3.5 rounded-2xl font-bold text-sm inline-flex items-center gap-2 shadow-lg">
+              <i data-lucide="external-link" class="h-4 w-4"></i> Xem toàn bộ album trên Instagram
+            </button>
+            <p class="text-xs text-gray-500 mt-3 font-semibold">Theo dõi chúng tôi tại @camerarentaldemo</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Story section -->
+    <section id="story-section" class="py-20 container mx-auto px-4 max-w-4xl">
+      <div class="text-center mb-12 space-y-3">
+        <h2 class="text-3xl font-extrabold tracking-tight">
+          <span class="bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">Câu chuyện của chúng
+            tôi</span>
+        </h2>
+        <p class="text-sm text-gray-600 font-semibold uppercase tracking-wider">Khởi nguồn từ niềm đam mê nhiếp ảnh và
+          mong muốn chia sẻ</p>
+      </div>
+
+      <div class="glass-card rounded-3xl p-8 md:p-12 space-y-6 border border-white/20">
+        <p class="text-base sm:text-lg text-gray-700 leading-relaxed">
+          <span class="text-3xl text-pink-400 font-serif">"</span>
+          Từ niềm đam mê với nhiếp ảnh và khát khao lan tỏa cảm hứng sáng tạo, chúng mình đã quyết định đầu tư hàng trăm
+          triệu đồng cho những chiếc máy ảnh Fujifilm chất lượng cao, để ai cũng có thể chạm đến trải nghiệm chụp ảnh
+          chuyên nghiệp — chỉ từ 100k.
+        </p>
+        <p class="text-base sm:text-lg text-gray-700 leading-relaxed">
+          Chúng mình hiểu cảm giác phân vân khi muốn mua máy nhưng sợ ít dùng, nên #CameraRentalDemo ra đời để bạn có
+          thể trải nghiệm nhiều dòng máy khác nhau, khám phá góc nhìn mới, mà chi phí chỉ bằng vài ly trà sữa.
+        </p>
+        <p class="text-base sm:text-lg text-gray-700 leading-relaxed">
+          Không chỉ cho thuê thiết bị, chúng mình còn muốn đồng hành cùng bạn trong từng khung hình: Tặng preset màu độc
+          quyền giúp ảnh có hồn hơn, hỗ trợ tận tình từ khi nhận máy đến lúc trả, đầy phụ kiện đi kèm để bạn chỉ việc
+          mang theo niềm cảm hứng và bắt đầu kể câu chuyện của riêng mình qua ống kính.
+          <span class="text-3xl text-pink-400 font-serif">"</span>
+        </p>
+      </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section class="py-20 bg-gradient-to-b from-transparent via-purple-500/5 to-transparent">
+      <div class="container mx-auto px-4 max-w-6xl space-y-12">
+        <div class="text-center space-y-3">
+          <h2 class="text-3xl font-extrabold text-gray-800 tracking-tight">
+            <span class="bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">Khách hàng nói gì
+              về chúng tôi</span>
+          </h2>
+          <p class="text-sm sm:text-base text-gray-600 font-medium max-w-xl mx-auto">
+            Những phản hồi chân thực từ những bạn trẻ đã tin tưởng đồng hành cùng #CameraRental
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          <div class="glass-card p-6 space-y-4 hover:shadow-lg transition-all duration-300">
+            <div class="flex gap-1 text-yellow-400">
+              <i data-lucide="star" class="w-4 h-4 fill-yellow-400"></i>
+              <i data-lucide="star" class="w-4 h-4 fill-yellow-400"></i>
+              <i data-lucide="star" class="w-4 h-4 fill-yellow-400"></i>
+              <i data-lucide="star" class="w-4 h-4 fill-yellow-400"></i>
+              <i data-lucide="star" class="w-4 h-4 fill-yellow-400"></i>
+            </div>
+            <p class="text-sm text-gray-600 leading-relaxed italic">"Máy ảnh chất lượng tuyệt vời, giá cả hợp lý. Chị
+              chủ rất nhiệt tình hướng dẫn mình sử dụng. Mình đã có những bức ảnh du lịch Đà Lạt cực đẹp!"</p>
+            <div class="pt-4 border-t border-gray-100">
+              <p class="font-bold text-gray-800 text-sm">Lan Anh</p>
+              <p class="text-[10px] text-pink-600 font-bold uppercase">Content Creator</p>
+            </div>
+          </div>
+
+          <div class="glass-card p-6 space-y-4 hover:shadow-lg transition-all duration-300">
+            <div class="flex gap-1 text-yellow-400">
+              <i data-lucide="star" class="w-4 h-4 fill-yellow-400"></i>
+              <i data-lucide="star" class="w-4 h-4 fill-yellow-400"></i>
+              <i data-lucide="star" class="w-4 h-4 fill-yellow-400"></i>
+              <i data-lucide="star" class="w-4 h-4 fill-yellow-400"></i>
+              <i data-lucide="star" class="w-4 h-4 fill-yellow-400"></i>
+            </div>
+            <p class="text-sm text-gray-600 leading-relaxed italic">"Thuê máy cho đám cưới của mình, dịch vụ chuyên
+              nghiệp lắm. Giao nhận đúng giờ, máy móc mới tinh. Cảm ơn team đã giúp mình có những khoảnh khắc đẹp nhất!"
+            </p>
+            <div class="pt-4 border-t border-gray-100">
+              <p class="font-bold text-gray-800 text-sm">Thu Hà</p>
+              <p class="text-[10px] text-pink-600 font-bold uppercase">Cô dâu mới</p>
+            </div>
+          </div>
+
+          <div class="glass-card p-6 space-y-4 hover:shadow-lg transition-all duration-300">
+            <div class="flex gap-1 text-yellow-400">
+              <i data-lucide="star" class="w-4 h-4 fill-yellow-400"></i>
+              <i data-lucide="star" class="w-4 h-4 fill-yellow-400"></i>
+              <i data-lucide="star" class="w-4 h-4 fill-yellow-400"></i>
+              <i data-lucide="star" class="w-4 h-4 fill-yellow-400"></i>
+              <i data-lucide="star" class="w-4 h-4 fill-yellow-400"></i>
+            </div>
+            <p class="text-sm text-gray-600 leading-relaxed italic">"Lần đầu thuê máy ảnh chuyên nghiệp, mình hơi lo
+              lắng nhưng chị tư vấn rất kỹ. Máy chụp ảnh chân dung màu sắc Fujifilm đỉnh chóp!"</p>
+            <div class="pt-4 border-t border-gray-100">
+              <p class="font-bold text-gray-800 text-sm">Phương Anh</p>
+              <p class="text-[10px] text-pink-600 font-bold uppercase">Nhiếp ảnh nghiệp dư</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footers -->
+    <footer class="border-t border-white/10 py-12 mt-20 text-center space-y-4 bg-white/10">
+      <div class="container mx-auto px-4 max-w-4xl space-y-6">
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <div class="p-3 rounded-2xl bg-gradient-to-br from-pink-400/30 to-purple-400/30 backdrop-blur-sm shadow-sm">
+            <i data-lucide="camera" class="h-8 w-8 text-pink-500"></i>
+          </div>
+          <div class="text-left">
+            <h3 id="footer-logo-text"
+              class="text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
+              Camera Rental demo </h3>
+            <p class="text-sm text-gray-500/70 font-semibold tracking-wide">Camera Rental</p>
+          </div>
+        </div>
+        <p class="text-sm text-gray-600 max-w-md mx-auto leading-relaxed">Ghi lại những khoảnh khắc đẹp nhất của bạn với
+          thiết bị chuyên nghiệp.</p>
+        <p id="footer-copyright-text" class="text-xs text-gray-400 font-bold pt-6 border-t border-gray-100">© 2025
+          Camera Rental demo</p>
+      </div>
+    </footer>
+
+  </main>
+
+  <!-- ==========================================
+       ADMIN VIEW CONTAINER
+       ========================================== -->
+  <main id="view-admin" class="hidden fade-in pt-28 pb-20 container mx-auto px-4 max-w-7xl space-y-8">
+
+    <!-- Header info banner -->
+    <div
+      class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/40 p-6 rounded-[2rem] border border-white/20">
+      <div class="flex items-center gap-3">
+        <div class="p-2 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 backdrop-blur-xl">
+          <i data-lucide="camera" class="h-8 w-8 text-pink-600 animate-pulse"></i>
+        </div>
+        <div>
+          <h2 class="text-2xl font-black text-gray-800">Camera Rental CMS</h2>
+          <p class="text-xs text-gray-500 font-semibold mt-0.5">Hệ thống quản trị & đặt lịch offline</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 text-xs font-bold text-gray-500">
+        <span>Đang đăng nhập: Admin</span>
+        <button onclick="switchView('customer')"
+          class="px-4 py-2.5 bg-white hover:bg-pink-50 text-gray-600 border rounded-xl flex items-center gap-2">
+          <i data-lucide="log-out" class="w-4 h-4 text-pink-500"></i> Đăng xuất
+        </button>
+      </div>
+    </div>
+
+    <!-- Admin Top Tab Bar Switcher (Matching Next.js) -->
+    <div class="glass-strong rounded-3xl p-2 grid grid-cols-5 gap-2 border shadow-sm">
+      <button onclick="switchAdminTab('cameras')" id="admin-tab-cameras"
+        class="flex items-center justify-center gap-2 py-3 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-wider transition-all duration-300 bg-pink-600 text-white shadow-md">
+        <i data-lucide="camera" class="w-4 h-4"></i> <span class="hidden sm:inline">Máy ảnh</span>
+      </button>
+      <button onclick="switchAdminTab('bookings')" id="admin-tab-bookings"
+        class="flex items-center justify-center gap-2 py-3 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-wider transition-all duration-300 bg-white/0 text-gray-600 hover:bg-white/40">
+        <i data-lucide="package" class="w-4 h-4"></i> <span class="hidden sm:inline">Đơn hàng</span>
+      </button>
+      <button onclick="switchAdminTab('calendar')" id="admin-tab-calendar"
+        class="flex items-center justify-center gap-2 py-3 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-wider transition-all duration-300 bg-white/0 text-gray-600 hover:bg-white/40">
+        <i data-lucide="calendar" class="w-4 h-4"></i> <span class="hidden sm:inline">Lịch</span>
+      </button>
+      <button onclick="switchAdminTab('management')" id="admin-tab-management"
+        class="flex items-center justify-center gap-2 py-3 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-wider transition-all duration-300 bg-white/0 text-gray-600 hover:bg-white/40">
+        <i data-lucide="sliders" class="w-4 h-4"></i> <span class="hidden sm:inline">Quản lý</span>
+      </button>
+      <button onclick="switchAdminTab('settings')" id="admin-tab-settings"
+        class="flex items-center justify-center gap-2 py-3 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-wider transition-all duration-300 bg-white/0 text-gray-600 hover:bg-white/40">
+        <i data-lucide="settings" class="w-4 h-4"></i> <span class="hidden sm:inline">Cài đặt</span>
+      </button>
+    </div>
+
+    <!-- ==========================================
+         TAB 1 PANEL: GEAR MANAGER (CAMERAS)
+         ========================================== -->
+    <div id="admin-panel-cameras" class="fade-in space-y-6">
+
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border bg-white/30 p-6 rounded-3xl">
+        <div>
+          <h3 class="text-xl font-bold text-gray-800">Quản lý máy ảnh</h3>
+          <p class="text-xs text-gray-500 font-semibold">Quản lý kho máy ảnh và thiết bị của shop</p>
+        </div>
+        <button onclick="openAddCameraModal()"
+          class="btn-primary px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center gap-2">
+          <i data-lucide="plus" class="w-4.5 h-4.5"></i> Thêm máy ảnh
+        </button>
+      </div>
+
+      <!-- Filters & Stats row -->
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="relative w-full sm:flex-1">
+          <input type="text" id="admin-cam-search" oninput="handleAdminGearSearch(this.value)"
+            placeholder="Tìm kiếm máy ảnh..."
+            class="w-full bg-white/60 border rounded-xl py-3 pl-11 pr-4 text-xs font-bold focus:outline-none">
+          <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2"></i>
+        </div>
+        <div class="flex items-center gap-2 text-xs font-bold text-gray-500 whitespace-nowrap">
+          <i data-lucide="package" class="w-4.5 h-4.5 text-pink-500"></i>
+          <span>Tổng: <span id="admin-gear-total-count" class="text-pink-600">0</span> máy</span>
+        </div>
+      </div>
+
+      <!-- Gear Grid -->
+      <div id="admin-cameras-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+
+    <!-- ==========================================
+         TAB 2 PANEL: BOOKING DASHBOARD (BOOKBOOK)
+         ========================================== -->
+    <div id="admin-panel-bookings" class="hidden fade-in space-y-6">
+      <div>
+        <h2 class="text-2xl font-bold text-gray-800">Dashboard đơn hàng</h2>
+        <p class="text-xs text-gray-500 font-semibold">Tổng quan về các đơn đặt thuê máy ảnh</p>
+      </div>
+
+      <!-- 5 Statistics Cards row -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
+
+        <div class="glass-card p-5 flex flex-col justify-between shadow-sm bg-white border border-white">
+          <div class="flex items-center justify-between pb-2">
+            <span class="text-xs font-semibold text-gray-500">Tổng đơn hàng</span>
+            <i data-lucide="package" class="w-4 h-4 text-gray-400"></i>
+          </div>
+          <p id="stats-total-bookings" class="text-2xl font-bold text-gray-800">0</p>
+        </div>
+
+        <div class="glass-card p-5 flex flex-col justify-between shadow-sm bg-white border border-white">
+          <div class="flex items-center justify-between pb-2">
+            <span class="text-xs font-semibold text-gray-500">Chờ xác nhận</span>
+            <i data-lucide="clock" class="w-4 h-4 text-gray-400"></i>
+          </div>
+          <p id="stats-pending-bookings" class="text-2xl font-bold text-yellow-600">0</p>
+        </div>
+
+        <div class="glass-card p-5 flex flex-col justify-between shadow-sm bg-white border border-white">
+          <div class="flex items-center justify-between pb-2">
+            <span class="text-xs font-semibold text-gray-500">Đang thuê</span>
+            <i data-lucide="users" class="w-4 h-4 text-gray-400"></i>
+          </div>
+          <p id="stats-active-bookings" class="text-2xl font-bold text-green-600">0</p>
+        </div>
+
+        <div class="glass-card p-5 flex flex-col justify-between shadow-sm bg-white border border-white">
+          <div class="flex items-center justify-between pb-2">
+            <span class="text-xs font-semibold text-gray-500">Quá hạn</span>
+            <i data-lucide="alert-circle" class="w-4 h-4 text-gray-400"></i>
+          </div>
+          <p id="stats-overdue-bookings" class="text-2xl font-bold text-orange-600">0</p>
+        </div>
+
+        <div
+          class="glass-card p-5 flex flex-col justify-between shadow-sm bg-white border border-white col-span-2 sm:col-span-1">
+          <div class="flex items-center justify-between pb-2">
+            <span class="text-xs font-semibold text-gray-500">Doanh thu tháng</span>
+            <i data-lucide="dollar-sign" class="w-4 h-4 text-gray-400"></i>
+          </div>
+          <p id="stats-monthly-revenue" class="text-2xl font-bold text-pink-600">0đ</p>
+        </div>
+
+      </div>
+
+      <!-- Filters & Sorting Controls -->
+      <div class="flex flex-col sm:flex-row gap-4">
+        <div class="flex-1 relative">
+          <input type="text" id="admin-booking-search" oninput="filterBookingGrid()"
+            placeholder="Tìm kiếm theo tên khách, sđt, email, máy ảnh..."
+            class="w-full bg-white/60 border rounded-xl py-3 pl-11 pr-4 text-xs font-bold focus:outline-none">
+          <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2"></i>
+        </div>
+
+        <div class="flex gap-2">
+          <select id="admin-booking-status-filter" onchange="filterBookingGrid()"
+            class="bg-white/70 border rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:outline-none w-[160px]">
+            <option value="all">Tất cả trạng thái</option>
+            <option value="pending">Chờ xác nhận</option>
+            <option value="confirmed">Đã xác nhận</option>
+            <option value="active">Đang thuê</option>
+            <option value="completed">Hoàn thành</option>
+            <option value="overtime">Quá hạn</option>
+            <option value="cancelled">Đã hủy</option>
+          </select>
+
+          <select id="admin-booking-date-filter" onchange="filterBookingGrid()"
+            class="bg-white/70 border rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:outline-none w-[130px]">
+            <option value="all">Tất cả ngày</option>
+            <option value="today">Hôm nay</option>
+            <option value="week">Tuần này</option>
+            <option value="month">Tháng này</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Orders detailed list card container -->
+      <div class="glass-card p-6 border space-y-4">
+        <div class="pb-4 border-b">
+          <h4 class="text-base font-bold text-gray-800">Danh sách đơn hàng</h4>
+          <p class="text-xs text-gray-500 font-semibold mt-0.5">Hiển thị <span id="bookings-shown-count"
+              class="text-pink-600">0</span> trong số <span id="bookings-total-count">0</span> đơn hàng</p>
+        </div>
+
+        <!-- Bookings cards list stack -->
+        <div id="admin-bookings-stack" class="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <div id="bookings-empty-fallback" class="hidden text-center py-12">
+          <i data-lucide="package" class="w-12 h-12 text-gray-400 mx-auto mb-3"></i>
+          <p class="text-sm text-gray-500 font-bold">Không tìm thấy đơn hàng nào phù hợp bộ lọc</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ==========================================
+         TAB 3 PANEL: MONTHLY CALENDAR VIEW
+         ========================================== -->
+    <div id="admin-panel-calendar" class="hidden fade-in space-y-6">
+      <div>
+        <h2 class="text-2xl font-bold text-gray-800">Lịch thuê máy</h2>
+        <p class="text-xs text-gray-500 font-semibold">Xem lịch theo tháng hoặc chi tiết theo ngày</p>
+      </div>
+
+      <!-- Calendar Active Day statistics dynamically calculated -->
+      <div class="bg-pink-500/5 border-2 border-pink-500/20 p-5 rounded-3xl">
+        <div class="flex items-center gap-2 pb-3 text-gray-800 font-bold text-sm">
+          <i data-lucide="package" class="w-5 h-5 text-pink-500"></i>
+          <span>Thống kê ngày: <span id="cal-stats-target-date" class="text-pink-600 font-black">N/A</span></span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="text-center p-4 bg-blue-50/50 rounded-2xl border">
+            <p id="cal-stats-cameras" class="text-3xl font-black text-blue-600">0</p>
+            <p class="text-xs text-gray-500 font-bold mt-1.5 flex items-center justify-center gap-1"><i
+                data-lucide="camera" class="w-3.5 h-3.5"></i> Máy đang cho thuê</p>
+          </div>
+          <div class="text-center p-4 bg-green-50/50 rounded-2xl border">
+            <p id="cal-stats-customers" class="text-3xl font-black text-green-600">0</p>
+            <p class="text-xs text-gray-500 font-bold mt-1.5 flex items-center justify-center gap-1"><i
+                data-lucide="users" class="w-3.5 h-3.5"></i> Khách hàng đang thuê</p>
+          </div>
+          <div class="text-center p-4 bg-purple-50/50 rounded-2xl border">
+            <p id="cal-stats-bookings" class="text-3xl font-black text-purple-600">0</p>
+            <p class="text-xs text-gray-500 font-bold mt-1.5">Tổng đơn đang hoạt động</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Month Day View modes toggle & Navigator header -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex gap-2">
+          <button id="cal-mode-btn-month" onclick="switchCalViewMode('month')"
+            class="px-4 py-2 text-xs font-bold rounded-xl bg-pink-600 text-white shadow-sm border border-transparent">Tháng</button>
+          <button id="cal-mode-btn-day" onclick="switchCalViewMode('day')"
+            class="px-4 py-2 text-xs font-bold rounded-xl bg-white border text-gray-600 hover:bg-gray-50">Ngày</button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="navigateCalendarMonth(-1)" class="p-2 border rounded-xl hover:bg-white transition"><i
+              data-lucide="chevron-left" class="w-4 h-4 text-pink-500"></i></button>
+          <span id="calendar-header-title-text"
+            class="text-sm sm:text-base font-bold text-gray-800 uppercase tracking-wider px-2">Tháng 5 2026</span>
+          <button onclick="navigateCalendarMonth(1)" class="p-2 border rounded-xl hover:bg-white transition"><i
+              data-lucide="chevron-right" class="w-4 h-4 text-pink-500"></i></button>
+          <button onclick="gotoTodayCalendar()"
+            class="px-4 py-2 text-xs font-bold bg-white border rounded-xl hover:bg-gray-50">Hôm nay</button>
+        </div>
+      </div>
+
+      <!-- MONTH VIEW CONTAINER -->
+      <div id="cal-view-container-month" class="glass-card p-0 border overflow-hidden">
+        <!-- Calendar Header days -->
+        <div
+          class="grid grid-cols-7 gap-px bg-gray-200 text-center py-2 text-[10px] text-gray-400 font-black uppercase tracking-widest bg-white/40">
+          <div>CN</div>
+          <div>T2</div>
+          <div>T3</div>
+          <div>T4</div>
+          <div>T5</div>
+          <div>T6</div>
+          <div>T7</div>
+        </div>
+        <!-- Days Grid -->
+        <div id="cal-monthly-days-grid" class="grid grid-cols-7 gap-px bg-gray-200">
+          <!-- Loaded dynamically -->
+        </div>
+      </div>
+
+      <!-- DAILY TIMELINE VIEW CONTAINER -->
+      <div id="cal-view-container-day" class="hidden glass-card p-6 border space-y-4">
+        <h4 id="cal-day-view-title" class="text-lg font-black text-gray-800 border-b pb-2">Thứ hai, 18/05/2026</h4>
+
+        <!-- Timeline Scroll Wrapper -->
+        <div class="relative max-h-[500px] overflow-y-auto pr-2">
+
+          <!-- Timeline Hours list -->
+          <div id="cal-daily-timeline-stack" class="relative divide-y divide-gray-100 border-l border-pink-200 ml-12">
+            <!-- Rendered by JS, hours from 7:00 to 22:00 with absolute positioned event block items -->
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ==========================================
+         TAB 4 PANEL: STATE & MODIFICATION (ORDERS)
+         ========================================== -->
+    <div id="admin-panel-management" class="hidden fade-in space-y-6">
+
+      <div class="border bg-white/30 p-6 rounded-3xl">
+        <h3 class="text-xl font-bold text-gray-800">Quản lý đặt thuê</h3>
+        <p class="text-xs text-gray-500 font-semibold">Chỉnh sửa chi tiết, xóa đơn, cập nhật cọc máy hoặc duyệt trạng
+          thái đặt thuê</p>
+      </div>
+
+      <div class="flex flex-col sm:flex-row gap-4">
+        <div class="flex-1 relative">
+          <input type="text" id="admin-mgmt-search" oninput="filterMgmtGrid()"
+            placeholder="Tìm kiếm theo mã đơn, khách hàng..."
+            class="w-full bg-white/60 border rounded-xl py-3 pl-11 pr-4 text-xs font-bold focus:outline-none">
+          <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2"></i>
+        </div>
+        <select id="admin-mgmt-status-filter" onchange="filterMgmtGrid()"
+          class="bg-white/70 border rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:outline-none w-[170px]">
+          <option value="all">Tất cả trạng thái</option>
+          <option value="pending">Chờ xác nhận</option>
+          <option value="confirmed">Đã xác nhận</option>
+          <option value="active">Đang thuê</option>
+          <option value="completed">Hoàn thành</option>
+          <option value="overtime">Quá hạn</option>
+          <option value="cancelled">Đã hủy</option>
+        </select>
+      </div>
+
+      <!-- Mgmt list stack -->
+      <div id="admin-mgmt-orders-list" class="space-y-4">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <div id="mgmt-empty-fallback" class="hidden text-center py-16">
+        <i data-lucide="clipboard-list" class="w-12 h-12 text-gray-300 mx-auto mb-3"></i>
+        <p class="text-sm text-gray-500 font-bold">Chưa có đơn đặt thuê nào trùng khớp bộ lọc</p>
+      </div>
+
+    </div>
+
+    <!-- ==========================================
+         TAB 5 PANEL: SETTINGS & BANKING (SETTINGS)
+         ========================================== -->
+    <div id="admin-panel-settings" class="hidden fade-in space-y-6">
+
+      <div class="border bg-white/30 p-6 rounded-3xl">
+        <h3 class="text-xl font-bold text-gray-800">Cài đặt hệ thống</h3>
+        <p class="text-xs text-gray-500 font-semibold">Cấu hình thông tin tài khoản chuyển khoản cọc máy và branding của
+          shop</p>
+      </div>
+
+      <div class="max-w-3xl mx-auto">
+        <!-- Banking form config -->
+        <div class="glass-card p-6 sm:p-8 border space-y-6">
+          <h4
+            class="text-base font-bold text-gray-800 border-b pb-2 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="sliders" class="w-4 h-4 text-pink-500"></i> Thông tin thanh toán
+          </h4>
+
+          <div class="space-y-4">
+            <div class="space-y-1.5">
+              <label class="text-xs font-bold text-gray-500 px-2">Ảnh mã QR thanh toán (Tải file cục bộ)</label>
+              <input type="file" id="cfg-qr-upload" accept="image/*"
+                class="w-full bg-white border rounded-xl px-4 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-pink-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100">
+              <div id="cfg-qr-preview-container" class="mt-2 hidden">
+                <img id="cfg-qr-preview" src="" class="h-32 object-contain rounded-xl border border-pink-100" />
+              </div>
+            </div>
+
+            <div class="space-y-1.5">
+              <label class="text-xs font-bold text-gray-500 px-2">Ngân hàng thanh toán</label>
+              <input type="text" id="cfg-bank-name" placeholder="Vietinbank..."
+                class="w-full bg-white border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-pink-300">
+            </div>
+
+            <div class="space-y-1.5">
+              <label class="text-xs font-bold text-gray-500 px-2">Số tài khoản nhận cọc</label>
+              <input type="text" id="cfg-bank-acc" placeholder="1098.7456.9999..."
+                class="w-full bg-white border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-pink-300">
+            </div>
+
+            <div class="space-y-1.5">
+              <label class="text-xs font-bold text-gray-500 px-2">Chủ tài khoản ngân hàng</label>
+              <input type="text" id="cfg-bank-owner" placeholder="NGUYEN VAN AN"
+                class="w-full bg-white border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-pink-300">
+            </div>
+
+            <div class="space-y-1.5">
+              <label class="text-xs font-bold text-gray-500 px-2">Cú pháp chuyển khoản mặc định</label>
+              <input type="text" id="cfg-bank-syntax" placeholder="DAT%20COC%20THUE%20MAY..."
+                class="w-full bg-white border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-pink-300">
+            </div>
+
+            <div class="pt-4">
+              <button onclick="saveAdminSettings()"
+                class="btn-primary w-full py-4 rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm">
+                Lưu cài đặt cấu hình
+              </button>
+            </div>
+          </div>
+        </div>
+
+
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ==========================================
+       MODAL DIALOG: GEAR DETAIL ADD / EDIT (ADMIN)
+       ========================================== -->
+  <div id="gear-dialog"
+    class="fixed inset-0 z-[200] hidden flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+    <div
+      class="glass-strong w-full max-w-lg rounded-3xl p-8 space-y-6 shadow-2xl relative fade-in max-h-[90vh] overflow-y-auto">
+
+      <button onclick="closeGearDialog()"
+        class="absolute top-6 right-6 text-gray-400 hover:text-gray-800 text-2xl font-bold transition">&times;</button>
+
+      <h3 id="gear-dialog-title" class="text-xl font-bold text-gray-800 leading-none">Thêm máy ảnh mới</h3>
+      <p class="text-xs text-gray-400 font-bold uppercase tracking-wider">Cấu hình chi tiết thiết bị</p>
+
+      <div class="space-y-4">
+        <!-- Hidden id key -->
+        <input type="hidden" id="edit-gear-id">
+
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-gray-500 px-2">Hãng sản xuất *</label>
+            <input type="text" id="gear-brand" placeholder="Fujifilm, Sony, Canon..."
+              class="w-full bg-white/70 border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none">
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-gray-500 px-2">Dòng máy (Model) *</label>
+            <input type="text" id="gear-model" placeholder="X-T5, A7 IV..."
+              class="w-full bg-white/70 border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none">
+          </div>
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="text-xs font-bold text-gray-500 px-2">Tên hiển thị đầy đủ *</label>
+          <input type="text" id="gear-name" placeholder="Sony Alpha A7 IV Hybrid..."
+            class="w-full bg-white/70 border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-gray-500 px-2">Loại thiết bị *</label>
+            <select id="gear-category"
+              class="w-full bg-white/70 border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none">
+              <option value="Mirrorless" selected>Mirrorless</option>
+              <option value="DSLR">DSLR</option>
+              <option value="Compact">Compact / Film</option>
+              <option value="Lens">Ống kính (Lens)</option>
+            </select>
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-gray-500 px-2">Tình trạng máy *</label>
+            <select id="gear-status"
+              class="w-full bg-white/70 border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none">
+              <option value="active" selected>Hoạt động (Active)</option>
+              <option value="maintenance">Bảo trì (Maintenance)</option>
+              <option value="retired">Ngừng hoạt động</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-gray-500 px-2">Giá thuê 1 Giờ (đ) *</label>
+            <input type="number" id="gear-rate-6h" placeholder="250000"
+              class="w-full bg-white/70 border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none">
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-gray-500 px-2">Giá thuê Cả Ngày (đ) *</label>
+            <input type="number" id="gear-rate-24h" placeholder="400000"
+              class="w-full bg-white/70 border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-gray-500 px-2">Tổng số lượng máy *</label>
+            <input type="number" id="gear-qty" placeholder="1" value="1"
+              class="w-full bg-white/70 border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none">
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-gray-500 px-2">Số lượng sẵn có *</label>
+            <input type="number" id="gear-avail" placeholder="1" value="1"
+              class="w-full bg-white/70 border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none">
+          </div>
+        </div>
+
+        <!-- Image Gallery Section -->
+        <div class="space-y-4 border-t border-pink-100 pt-4">
+          <label class="text-xs font-bold text-gray-500 px-2">Quản lý ảnh</label>
+          
+          <!-- Main Image Section -->
+          <div id="gear-images-container" class="space-y-3">
+            <div class="space-y-2">
+              <p class="text-[10px] font-bold text-pink-600 uppercase">Ảnh Camera</p>
+              <div id="gear-main-image-preview" class="w-full h-32 bg-gray-100 border border-gray-200 rounded-xl flex items-center justify-center text-gray-400">
+                <p class="text-xs">Chưa có ảnh</p>
+              </div>
+              
+              <div class="space-y-1.5">
+                <label class="text-xs font-bold text-gray-500 px-2">Thêm/Cập nhật ảnh Camera</label>
+                <input type="file" id="gear-file-input" accept="image/*"
+                  class="w-full text-xs text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100 cursor-pointer">
+              </div>
+            </div>
+
+            <!-- Secondary Images Section -->
+            <div class="space-y-2 pt-3 border-t border-gray-100">
+              <p class="text-[10px] font-bold text-pink-600 uppercase">Ảnh mẫu</p>
+              <div id="gear-secondary-images-grid" class="grid grid-cols-3 gap-2">
+                <!-- Thumbnail images will be rendered here -->
+              </div>
+              
+              <div class="space-y-1.5">
+                <label class="text-xs font-bold text-gray-500 px-2">Thêm ảnh mẫu</label>
+                <input type="file" id="gear-extra-files" accept="image/*" multiple
+                  class="w-full text-xs text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100 cursor-pointer">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-4">
+          <button onclick="saveGearItem()"
+            class="btn-primary w-full py-4 rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm">
+            Lưu thiết bị vào kho
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL DIALOG: EDIT BOOKING STATUS (ADMIN)
+       ========================================== -->
+  <div id="booking-edit-dialog"
+    class="fixed inset-0 z-[200] hidden flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+    <div
+      class="glass-strong w-full max-w-lg rounded-3xl p-8 space-y-6 shadow-2xl relative fade-in max-h-[90vh] overflow-y-auto">
+
+      <button onclick="closeBookingEditDialog()"
+        class="absolute top-6 right-6 text-gray-400 hover:text-gray-800 text-2xl font-bold transition">&times;</button>
+
+      <h3 class="text-xl font-bold text-gray-800 leading-none">Chỉnh sửa đơn đặt thuê</h3>
+      <p class="text-xs text-gray-400 font-bold uppercase tracking-wider">Cập nhật thông tin chi tiết</p>
+
+      <div class="space-y-4">
+        <!-- Hidden ID -->
+        <input type="hidden" id="edit-booking-id">
+
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-gray-500 px-2">Họ & tên khách hàng *</label>
+            <input type="text" id="edit-booking-cust"
+              class="w-full bg-white/70 border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none">
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-gray-500 px-2">Số điện thoại *</label>
+            <input type="tel" id="edit-booking-phone"
+              class="w-full bg-white/70 border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-gray-500 px-2">Email *</label>
+            <input type="email" id="edit-booking-email"
+              class="w-full bg-white/70 border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none">
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-gray-500 px-2">Phương thức cọc *</label>
+            <select id="edit-booking-deposit"
+              class="w-full bg-white/70 border rounded-xl px-4 py-3.5 text-xs font-bold focus:outline-none">
+              <option value="cccd-taisan">CCCD + Tài sản</option>
+              <option value="cccd-80">CCCD + 80% máy</option>
+              <option value="100">Cọc 100% máy</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-gray-500 px-2">Trạng thái đơn hàng *</label>
+            <select id="edit-booking-status"
+              class="w-full bg-white/70 border rounded-xl px-4 py-3.5 text-xs font-bold focus:outline-none">
+              <option value="pending">Chờ xác nhận</option>
+              <option value="confirmed">Đã xác nhận</option>
+              <option value="active">Đang thuê</option>
+              <option value="completed">Hoàn thành</option>
+              <option value="overtime">Quá hạn</option>
+              <option value="cancelled">Đã hủy</option>
+            </select>
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-gray-500 px-2">Ghi chú quản trị viên</label>
+            <input type="text" id="edit-booking-notes" placeholder="VD: Pin xạc đầy, kèm phụ kiện..."
+              class="w-full bg-white/70 border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none">
+          </div>
+        </div>
+
+        <div class="pt-4">
+          <button onclick="saveBookingDetails()"
+            class="btn-primary w-full py-4 rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm">
+            Lưu thay đổi đơn
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ==========================================
+       JAVASCRIPT LOGIC DYNAMIC ENGINE
+       ========================================== -->
+  <script>
+    // Global Diagnostics & JS error handlers
+    window.onerror = function (message, source, lineno, colno, error) {
+      const banner = document.getElementById('demo-error-banner');
+      const msg = document.getElementById('demo-error-msg');
+      if (banner && msg) {
+        banner.style.display = 'block';
+        msg.textContent = `${message}\ntại ${source}:${lineno}:${colno}\n\nStack:\n${error ? error.stack : 'N/A'}`;
+      }
+      return false;
+    };
+
+    window.onunhandledrejection = function (event) {
+      const banner = document.getElementById('demo-error-banner');
+      const msg = document.getElementById('demo-error-msg');
+      if (banner && msg) {
+        banner.style.display = 'block';
+        msg.textContent = `Promise Rejection không được xử lý: ${event.reason}\n\nStack:\n${event.reason && event.reason.stack ? event.reason.stack : 'N/A'}`;
+      }
+    };
+
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // ----------------------------------------------------
+    // INDEXEDDB DATABASE SEEDING ENGINE
+    // ----------------------------------------------------
+    const DB_NAME = 'OfficialGearDB_v10';
+    const DB_VERSION = 1;
+    let db = null;
+
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onupgradeneeded = (e) => {
+      const database = e.target.result;
+      if (!database.objectStoreNames.contains('cameras')) {
+        database.createObjectStore('cameras', { keyPath: 'id', autoIncrement: true });
+      }
+      if (!database.objectStoreNames.contains('bookings')) {
+        database.createObjectStore('bookings', { keyPath: 'id', autoIncrement: true });
+      }
+      if (!database.objectStoreNames.contains('settings')) {
+        database.createObjectStore('settings', { keyPath: 'id' });
+      }
+    };
+
+    request.onsuccess = (e) => {
+      db = e.target.result;
+      seedDefaultData().then(() => {
+        initTimeOptions();
+        renderAll();
+      });
+    };
+
+    request.onerror = (e) => {
+      console.error("IndexedDB Open Error:", e);
+    };
+
+    async function seedDefaultData() {
+      if (!db) return;
+
+      const countStore = (storeName) => {
+        return new Promise(resolve => {
+          const tx = db.transaction(storeName, 'readonly');
+          const store = tx.objectStore(storeName);
+          const req = store.count();
+          req.onsuccess = () => resolve(req.result === 0);
+          req.onerror = () => resolve(true);
+        });
+      };
+
+      // 1. Seed Cameras
+      const camsEmpty = await countStore('cameras');
+      if (camsEmpty) {
+        const tx = db.transaction('cameras', 'readwrite');
+        const store = tx.objectStore('cameras');
+
+        const list = [
+          {
+            name: 'Fujifilm X-T4 Premium Bundle',
+            brand: 'Fujifilm',
+            model: 'X-T4',
+            category: 'Mirrorless',
+            hourlyRate: 50000,
+            fullDayRate: 400000,
+            quantity: 2,
+            available: 2,
+            status: 'active',
+            description: 'Dòng máy ảnh Mirrorless chuyên nghiệp cảm biến APS-C 26.1MP, chống rung 5 trục hoàn hảo cho làm phim và chụp nghệ thuật.',
+            specifications: 'Cảm biến X-Trans CMOS 4, 26.1 Megapixels, Quay phim DCI 4K60p, Chống rung IBIS 6.5 stops.',
+            images: [
+              '../camera-rental-cms-hq-main/public/camera1.jpg',
+              '../camera-rental-cms-hq-main/public/IMG_1490.JPG',
+              '../camera-rental-cms-hq-main/public/IMG_1491.JPG'
+            ]
+          },
+          {
+            name: 'Sony Alpha A7 IV Hybrid',
+            brand: 'Sony',
+            model: 'A7 IV',
+            category: 'Mirrorless',
+            hourlyRate: 70000,
+            fullDayRate: 600000,
+            quantity: 1,
+            available: 1,
+            status: 'active',
+            description: 'Cảm biến Full-frame Exmor R 33MP thế hệ mới, lấy nét Real-time Eye AF cực đỉnh cho cả người và động vật.',
+            specifications: 'Cảm biến Full Frame 33MP, ISO 100-51200, Lấy nét 759 điểm pha, Quay 4K 60p 10-bit 4:2:2.',
+            images: [
+              '../camera-rental-cms-hq-main/public/camera2.jpg',
+              '../camera-rental-cms-hq-main/public/IMG_1291.JPG',
+              '../camera-rental-cms-hq-main/public/IMG_1292.JPG'
+            ]
+          },
+          {
+            name: 'Canon EOS R6 Mark II',
+            brand: 'Canon',
+            model: 'EOS R6 II',
+            category: 'Mirrorless',
+            hourlyRate: 60000,
+            fullDayRate: 550000,
+            quantity: 1,
+            available: 1,
+            status: 'active',
+            description: 'Chiếc máy ảnh đa năng chụp nhanh 40fps, chống rung lên tới 8 stops, lấy nét thông minh AI.',
+            specifications: 'Cảm biến CMOS Full Frame 24.2MP, Chụp liên tiếp 40 hình/s, Chống rung lên tới 8 stops.',
+            images: [
+              '../camera-rental-cms-hq-main/public/camera3.jpg',
+              '../camera-rental-cms-hq-main/public/ae2fb699-8c93-4ec9-b1db-009e0002dc12.jpeg',
+              '../camera-rental-cms-hq-main/public/f9bb4528-cd71-4a86-8baa-c94b4979fe44.jpeg'
+            ]
+          },
+          {
+            name: 'Ricoh GR IIIx Urban Street',
+            brand: 'Ricoh',
+            model: 'GR IIIx',
+            category: 'Compact',
+            hourlyRate: 40000,
+            fullDayRate: 350000,
+            quantity: 3,
+            available: 3,
+            status: 'active',
+            description: 'Ông vua đường phố bỏ túi tiêu cự 40mm lý tưởng cho chụp ảnh snap, tư liệu đời thường cực chất.',
+            specifications: 'Cảm biến APS-C 24.2MP, Ống kính GR 26.1mm F2.8 (tương đương 40mm), Chống rung 3 trục SR.',
+            images: [
+              '../camera-rental-cms-hq-main/public/IMG_0316.JPG',
+              '../camera-rental-cms-hq-main/public/IMG_0317.JPG',
+              '../camera-rental-cms-hq-main/public/7b638d26-ef1a-41ae-b8a3-539ece5c3acb.jpeg'
+            ]
+          },
+          {
+            name: 'Fujifilm X100V Cinematic compact',
+            brand: 'Fujifilm',
+            model: 'X100V',
+            category: 'Compact',
+            hourlyRate: 60000,
+            fullDayRate: 500000,
+            quantity: 1,
+            available: 1,
+            status: 'active',
+            description: 'Thiết kế Rangefinder retro cuốn hút, giả lập màu phim Classic Neg tuyệt phẩm không cần hậu kỳ.',
+            specifications: 'Cảm biến APS-C X-Trans CMOS 4 26.1MP, Kính ngắm lai OVF/EVF, Ống kính 23mm F2.0.',
+            images: [
+              '../camera-rental-cms-hq-main/public/2a7e512e-6ed5-45ae-a94e-5c33fc9e5c89.jpeg',
+              '../camera-rental-cms-hq-main/public/094cb8ba-a82f-41a6-9e60-da419b25b57f.jpeg',
+              '../camera-rental-cms-hq-main/public/a50dde13-89aa-4d51-9ca1-9582184bd24f.jpeg'
+            ]
+          },
+          {
+            name: 'Sony FE 24-70mm f/2.8 GM II',
+            brand: 'Sony',
+            model: '24-70 GM II',
+            category: 'Lens',
+            hourlyRate: 40000,
+            fullDayRate: 300000,
+            quantity: 2,
+            available: 2,
+            status: 'active',
+            description: 'Ống kính zoom tiêu chuẩn G Master thế hệ II siêu nhẹ, nét đứt rìa ảnh, bokeh mềm mượt.',
+            specifications: 'Khẩu độ F2.8 toàn dải zoom, 4 động cơ lấy nét cực nhanh XD, Khoảng cách lấy nét gần nhất 21cm.',
+            images: [
+              '../camera-rental-cms-hq-main/public/att.o1rcsHFG7PLCYVrAQG91brAKHcsFdeWCEJDxBJUIycQ.jpg',
+              '../camera-rental-cms-hq-main/public/e9586cd4-c844-4748-8823-cae366c745e6.jpeg',
+              '../camera-rental-cms-hq-main/public/placeholder.jpg'
+            ]
+          }
+        ];
+        list.forEach(c => store.add(c));
+      }
+
+      // 2. Seed Bookings
+      const bookingsEmpty = await countStore('bookings');
+      if (bookingsEmpty) {
+        const tx = db.transaction('bookings', 'readwrite');
+        const store = tx.objectStore('bookings');
+
+        const today = new Date();
+        const formatDate = (d) => `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+
+        const date1_start = new Date(today);
+        const date1_end = new Date(today);
+        date1_end.setDate(today.getDate() + 2);
+
+        const date2_start = new Date(today);
+        date2_start.setDate(today.getDate() + 1);
+        const date2_end = new Date(today);
+        date2_end.setDate(today.getDate() + 4);
+
+        const list = [
+          {
+            name: 'Nguyễn Hoàng Nam',
+            phone: '0912345678',
+            email: 'nam.nh@gmail.com',
+            cameraName: 'Fujifilm X-T4 Premium Bundle',
+            start: formatDate(date1_start),
+            end: formatDate(date1_end),
+            timeRange: '14:00 → 18:00',
+            depositMethod: 'cccd-taisan',
+            total: '800.000đ',
+            status: 'active',
+            notes: 'Lấy kèm thêm 1 pin và preset màu Hàn Quốc',
+            createdAt: new Date().toISOString()
+          },
+          {
+            name: 'Lê Thị Thuỳ Dương',
+            phone: '0987654321',
+            email: 'duong.le@gmail.com',
+            cameraName: 'Ricoh GR IIIx Urban Street',
+            start: formatDate(date2_start),
+            end: formatDate(date2_end),
+            timeRange: '08:00 → 18:00',
+            depositMethod: 'cccd-80',
+            total: '1.050.000đ',
+            status: 'pending',
+            notes: 'Cọc CCCD kèm tiền mặt 80%.',
+            createdAt: new Date().toISOString()
+          }
+        ];
+        list.forEach(b => store.add(b));
+      }
+
+      // 3. Seed Settings
+      const settingsEmpty = await countStore('settings');
+      if (settingsEmpty) {
+        const tx = db.transaction('settings', 'readwrite');
+        const store = tx.objectStore('settings');
+        const settings = {
+          id: 'payment_info',
+          qrImage: '',
+          bank: 'Vietinbank',
+          account: '1098.7456.9999',
+          owner: 'NGUYEN VAN AN',
+          syntax: 'DAT%20COC%20THUE%20MAY'
+        };
+        store.put(settings);
+      }
+    }
+
+    // ----------------------------------------------------
+    // GLOBAL APP VIEWS SWITCHERS
+    // ----------------------------------------------------
+    let currentMainView = 'customer';
+    let currentAdminTab = 'cameras';
+    let customerSearchTerm = '';
+    let adminGearSearchTerm = '';
+
+    function switchView(view) {
+      currentMainView = view;
+      const cBlock = document.getElementById('view-customer');
+      const aBlock = document.getElementById('view-admin');
+
+      if (view === 'customer') {
+        cBlock.classList.remove('hidden');
+        aBlock.classList.add('hidden');
+        document.getElementById('main-header').classList.remove('translate-y-full');
+      } else {
+        cBlock.classList.add('hidden');
+        aBlock.classList.remove('hidden');
+      }
+
+      // Toggle Active Swapper styling
+      const btnCust = document.getElementById('btn-customer');
+      const btnAdmin = document.getElementById('btn-admin');
+
+      btnCust.className = `px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 ${view === 'customer' ? 'bg-white shadow-md text-pink-600' : 'hover:bg-white/40 text-gray-600'}`;
+      btnAdmin.className = `px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 ${view === 'admin' ? 'bg-white shadow-md text-pink-600' : 'hover:bg-white/40 text-gray-600'}`;
+
+      window.scrollTo(0, 0);
+      renderAll();
+    }
+
+    function switchAdminTab(tab) {
+      currentAdminTab = tab;
+      const tabs = ['cameras', 'bookings', 'calendar', 'management', 'settings'];
+
+      tabs.forEach(t => {
+        const panel = document.getElementById(`admin-panel-${t}`);
+        const tabBtn = document.getElementById(`admin-tab-${t}`);
+
+        if (t === tab) {
+          panel.classList.remove('hidden');
+          tabBtn.className = "flex items-center justify-center gap-2 py-3 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-wider transition-all duration-300 bg-pink-600 text-white shadow-md";
+        } else {
+          panel.classList.add('hidden');
+          tabBtn.className = "flex items-center justify-center gap-2 py-3 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-wider transition-all duration-300 bg-white/0 text-gray-600 hover:bg-white/40";
+        }
+      });
+
+      renderAll();
+    }
+
+    function scrollToSelector(sel) {
+      const el = document.querySelector(sel);
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function toggleMobileMenu() {
+      const menu = document.getElementById('mobile-menu');
+      const icon = document.getElementById('mobile-toggle-icon');
+      const isHidden = menu.classList.contains('hidden');
+
+      if (isHidden) {
+        menu.classList.remove('hidden');
+        icon.setAttribute('data-lucide', 'x');
+      } else {
+        menu.classList.add('hidden');
+        icon.setAttribute('data-lucide', 'menu');
+      }
+      lucide.createIcons();
+    }
+
+    // ----------------------------------------------------
+    // SYSTEM BRANDS AND SETTINGS LOADER
+    // ----------------------------------------------------
+    let currentStoreCfg = {};
+
+    function loadStoreSettings() {
+      if (!db) return;
+      db.transaction('settings').objectStore('settings').get('payment_info').onsuccess = (e) => {
+        const cfg = e.target.result;
+        if (cfg) {
+          currentStoreCfg = cfg;
+
+          // Populate fields
+          // Populate fields
+          document.getElementById('cfg-bank-name').value = cfg.bank || '';
+          document.getElementById('cfg-bank-acc').value = cfg.account || '';
+          document.getElementById('cfg-bank-owner').value = cfg.owner || '';
+          document.getElementById('cfg-bank-syntax').value = cfg.syntax || '';
+
+          if (cfg.qrImage) {
+            document.getElementById('cfg-qr-preview-container').classList.remove('hidden');
+            document.getElementById('cfg-qr-preview').src = cfg.qrImage;
+          } else {
+            document.getElementById('cfg-qr-preview-container').classList.add('hidden');
+          }
+        }
+      };
+    }
+
+    function saveAdminSettings() {
+      if (!db) return;
+
+      const bank = document.getElementById('cfg-bank-name').value.trim();
+      const account = document.getElementById('cfg-bank-acc').value.trim();
+      const owner = document.getElementById('cfg-bank-owner').value.trim().toUpperCase();
+      const syntax = document.getElementById('cfg-bank-syntax').value.trim();
+
+      const qrInput = document.getElementById('cfg-qr-upload');
+      let qrImage = currentStoreCfg ? currentStoreCfg.qrImage : '';
+
+      const finalizeSave = (qrData) => {
+        const newCfg = { id: 'payment_info', qrImage: qrData, bank, account, owner, syntax };
+        const tx = db.transaction('settings', 'readwrite');
+        tx.objectStore('settings').put(newCfg);
+        tx.oncomplete = () => {
+          alert('Cấu hình thanh toán đã được cập nhật thành công!');
+          renderAll();
+        };
+      };
+
+      if (qrInput.files && qrInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (e) => finalizeSave(e.target.result);
+        reader.readAsDataURL(qrInput.files[0]);
+      } else {
+        finalizeSave(qrImage);
+      }
+    }
+
+    function resetOfflineDatabase() {
+      if (!confirm('Khôi phục cơ sở dữ liệu mẫu ban đầu? Tất cả dữ liệu bạn tự tạo hoặc sửa đổi sẽ bị xoá bỏ!')) return;
+      db.close();
+      const req = indexedDB.deleteDatabase(DB_NAME);
+      req.onsuccess = () => {
+        alert('Cơ sở dữ liệu đã khôi phục thành công. Trang sẽ tải lại!');
+        window.location.reload();
+      };
+    }
+
+    // ----------------------------------------------------
+    // DYNAMIC MASTER RENDERING ENGINE
+    // ----------------------------------------------------
+    function renderAll() {
+      if (!db) return;
+
+      loadStoreSettings();
+      renderGallery();
+
+      // General active statistics
+      db.transaction('cameras').objectStore('cameras').getAll().onsuccess = (e) => {
+        const list = e.target.result || [];
+        document.getElementById('admin-gear-total-count').innerText = list.length;
+
+        // Render gear panel
+        if (currentAdminTab === 'cameras') {
+          renderAdminCameras(list);
+        }
+      };
+
+      db.transaction('bookings').objectStore('bookings').getAll().onsuccess = (e) => {
+        const bookings = e.target.result || [];
+
+        // Render stats
+        const activeCount = bookings.filter(b => b.status === 'active').length;
+        const overdueCount = bookings.filter(b => b.status === 'overtime').length;
+        const pendingCount = bookings.filter(b => b.status === 'pending').length;
+
+        let totalRevenue = 0;
+        bookings.forEach(b => {
+          if (b.status === 'completed') {
+            const num = Number((b.total || '').replace(/[^0-9]/g, ''));
+            totalRevenue += num;
+          }
+        });
+
+        document.getElementById('stats-total-bookings').innerText = bookings.length;
+        document.getElementById('stats-pending-bookings').innerText = pendingCount;
+        document.getElementById('stats-active-bookings').innerText = activeCount;
+        document.getElementById('stats-overdue-bookings').innerText = overdueCount;
+        document.getElementById('stats-monthly-revenue').innerText = totalRevenue.toLocaleString('vi-VN') + 'đ';
+
+        // Render bookings tab
+        if (currentAdminTab === 'bookings') {
+          renderAdminBookingsStack(bookings);
+        }
+
+        // Render management list
+        if (currentAdminTab === 'management') {
+          renderMgmtOrders(bookings);
+        }
+
+        // Render calendar
+        if (currentAdminTab === 'calendar') {
+          initCalendar(bookings);
+        }
+      };
+    }
+
+    // ----------------------------------------------------
+    // GEOMETRIC PHOTO GALLERIES (Tailored)
+    // ----------------------------------------------------
+    const galleryUrls = [
+      '../camera-rental-cms-hq-main/public/camera1.jpg',
+      '../camera-rental-cms-hq-main/public/IMG_1490.JPG',
+      '../camera-rental-cms-hq-main/public/IMG_1491.JPG',
+      '../camera-rental-cms-hq-main/public/camera2.jpg',
+      '../camera-rental-cms-hq-main/public/IMG_1291.JPG',
+      '../camera-rental-cms-hq-main/public/IMG_1292.JPG',
+      '../camera-rental-cms-hq-main/public/camera3.jpg',
+      '../camera-rental-cms-hq-main/public/ae2fb699-8c93-4ec9-b1db-009e0002dc12.jpeg',
+      '../camera-rental-cms-hq-main/public/f9bb4528-cd71-4a86-8baa-c94b4979fe44.jpeg',
+      '../camera-rental-cms-hq-main/public/IMG_0316.JPG',
+      '../camera-rental-cms-hq-main/public/IMG_0317.JPG',
+      '../camera-rental-cms-hq-main/public/7b638d26-ef1a-41ae-b8a3-539ece5c3acb.jpeg',
+      '../camera-rental-cms-hq-main/public/2a7e512e-6ed5-45ae-a94e-5c33fc9e5c89.jpeg',
+      '../camera-rental-cms-hq-main/public/094cb8ba-a82f-41a6-9e60-da419b25b57f.jpeg',
+      '../camera-rental-cms-hq-main/public/a50dde13-89aa-4d51-9ca1-9582184bd24f.jpeg',
+      '../camera-rental-cms-hq-main/public/att.o1rcsHFG7PLCYVrAQG91brAKHcsFdeWCEJDxBJUIycQ.jpg',
+      '../camera-rental-cms-hq-main/public/e9586cd4-c844-4748-8823-cae366c745e6.jpeg',
+      '../camera-rental-cms-hq-main/public/placeholder.jpg'
+    ];
+
+    let currentGalleryPage = 0;
+    const photosPerPage = 10;
+    const totalGalleryPages = Math.ceil(galleryUrls.length / photosPerPage);
+
+    function changeGalleryPage(dir) {
+      currentGalleryPage += dir;
+      if (currentGalleryPage < 0) currentGalleryPage = 0;
+      if (currentGalleryPage >= totalGalleryPages) currentGalleryPage = totalGalleryPages - 1;
+      renderGallery();
+    }
+
+    function renderGallery() {
+      const grid = document.getElementById('customer-photos-grid');
+      const dots = document.getElementById('gallery-pagination-dots');
+
+      if (!grid) return;
+      grid.innerHTML = '';
+
+      const start = currentGalleryPage * photosPerPage;
+      const paginated = galleryUrls.slice(start, start + photosPerPage);
+
+      paginated.forEach((url, i) => {
+        const item = document.createElement('div');
+        item.className = "aspect-square rounded-2xl overflow-hidden glass-light border border-white/20 hover:scale-105 transition-all duration-300 group cursor-pointer shadow-sm relative";
+        item.onclick = () => openGalleryZoom(url);
+        item.innerHTML = `
+          <div class="relative w-full h-full">
+            <img src="${url}" alt="" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          </div>
+        `;
+        grid.appendChild(item);
+      });
+
+      document.getElementById('btn-gallery-prev').disabled = currentGalleryPage === 0;
+      document.getElementById('btn-gallery-next').disabled = currentGalleryPage === totalGalleryPages - 1;
+
+      // Render dots
+      if (dots) {
+        dots.innerHTML = '';
+        for (let i = 0; i < totalGalleryPages; i++) {
+          const dot = document.createElement('button');
+          dot.className = `w-2 h-2 rounded-full transition-all duration-300 ${currentGalleryPage === i ? 'bg-pink-400 w-6' : 'bg-white/30 hover:bg-white/50'}`;
+          dot.onclick = () => {
+            currentGalleryPage = i;
+            renderGallery();
+          };
+          dots.appendChild(dot);
+        }
+      }
+    }
+
+    // Modal Zoom Gallery handlers
+    let activeZoomUrl = '';
+    function openGalleryZoom(url) {
+      activeZoomUrl = url;
+      document.getElementById('gallery-zoom-img').src = url;
+      document.getElementById('gallery-zoom-modal').classList.remove('hidden');
+
+      const isGallery = galleryUrls.includes(url);
+      document.getElementById('zoom-prev-btn').style.display = isGallery ? 'block' : 'none';
+      document.getElementById('zoom-next-btn').style.display = isGallery ? 'block' : 'none';
+    }
+    function closeGalleryZoom() {
+      document.getElementById('gallery-zoom-modal').classList.add('hidden');
+    }
+    function navigateZoom(dir) {
+      const index = galleryUrls.indexOf(activeZoomUrl);
+      if (index === -1) return;
+      let nextIndex = index + dir;
+      if (nextIndex < 0) nextIndex = galleryUrls.length - 1;
+      if (nextIndex >= galleryUrls.length) nextIndex = 0;
+      openGalleryZoom(galleryUrls[nextIndex]);
+    }
+
+    // ----------------------------------------------------
+    // INLINE WIZARD STEP ENGINE (dates -> select -> details -> confirm)
+    // ----------------------------------------------------
+    let wizardStep = 'dates';
+    let wizardSelectedGear = null;
+    let wizardMode = 'hourly'; // Global mode
+
+    function setBookingMode(mode) {
+      wizardMode = mode;
+
+      const btnHourly = document.getElementById('btn-mode-hourly');
+      const btnDaily = document.getElementById('btn-mode-daily');
+
+      if (mode === 'hourly') {
+        btnHourly.className = 'flex-1 flex items-center justify-center gap-2.5 py-3.5 rounded-[1.4rem] text-sm font-black uppercase tracking-wider transition-all duration-300 bg-white shadow-md text-[#df52cc] scale-[1.01]';
+        btnDaily.className = 'flex-1 flex items-center justify-center gap-2.5 py-3.5 rounded-[1.4rem] text-sm font-black uppercase tracking-wider transition-all duration-300 text-slate-500 hover:text-slate-800';
+
+        document.getElementById('pickup-time-container').classList.remove('hidden');
+        document.getElementById('return-time-container').classList.remove('hidden');
+
+        // Disable return date, lock it to pickup date visually
+        document.getElementById('btn-return-date').classList.add('opacity-60', 'pointer-events-none', 'bg-slate-50');
+      } else {
+        btnDaily.className = 'flex-1 flex items-center justify-center gap-2.5 py-3.5 rounded-[1.4rem] text-sm font-black uppercase tracking-wider transition-all duration-300 bg-white shadow-md text-[#df52cc] scale-[1.01]';
+        btnHourly.className = 'flex-1 flex items-center justify-center gap-2.5 py-3.5 rounded-[1.4rem] text-sm font-black uppercase tracking-wider transition-all duration-300 text-slate-500 hover:text-slate-800';
+
+        document.getElementById('pickup-time-container').classList.remove('hidden');
+        document.getElementById('return-time-container').classList.remove('hidden');
+
+        // Re-enable return date
+        document.getElementById('btn-return-date').classList.remove('opacity-60', 'pointer-events-none', 'bg-slate-50');
+      }
+
+      // Reset selections when switching mode
+      wizardBookingForm.pickupDate = '';
+      wizardBookingForm.returnDate = '';
+      wizardBookingForm.pickupTime = '';
+      wizardBookingForm.returnTime = '';
+      document.getElementById('txt-pickup-date').textContent = 'Ngày nhận';
+      document.getElementById('txt-return-date').textContent = 'Ngày trả';
+      document.getElementById('txt-pickup-time').textContent = 'Giờ nhận';
+      document.getElementById('txt-return-time').textContent = 'Giờ trả';
+    }
+
+    let wizardBookingForm = {
+      pickupDate: '',
+      pickupTime: '',
+      returnDate: '',
+      returnTime: '',
+      name: '',
+      phone: '',
+      email: '',
+      deposit: 'cccd-taisan',
+      notes: ''
+    };
+
+    const timeOptions = [
+      { label: "7:00 sáng", value: "07:00" },
+      { label: "8:00 sáng", value: "08:00" },
+      { label: "9:00 sáng", value: "09:00" },
+      { label: "10:00 sáng", value: "10:00" },
+      { label: "11:00 trưa", value: "11:00" },
+      { label: "12:00 trưa", value: "12:00" },
+      { label: "13:00 chiều", value: "13:00" },
+      { label: "14:00 chiều", value: "14:00" },
+      { label: "15:00 chiều", value: "15:00" },
+      { label: "16:00 chiều", value: "16:00" },
+      { label: "17:00 chiều", value: "17:00" },
+      { label: "18:00 chiều", value: "18:00" },
+      { label: "19:00 tối", value: "19:00" },
+      { label: "20:00 tối", value: "20:00" },
+      { label: "21:00 tối", value: "21:00" },
+      { label: "22:00 tối", value: "22:00" }
+    ];
+
+    // Global calendar variables for client-demo.html
+    let activeCalendarField = null; // 'pickup' or 'return'
+    let calendarYear = new Date().getFullYear();
+    let calendarMonth = new Date().getMonth();
+
+    function initTimeOptions() {
+      // Setup runs dynamically when users click
+    }
+
+    window.openCustomCalendar = function (field) {
+      closeAllDropdowns();
+      activeCalendarField = field;
+
+      let popup = document.getElementById('custom-calendar-popup');
+      if (!popup) {
+        popup = document.createElement('div');
+        popup.id = 'custom-calendar-popup';
+        popup.className = 'absolute z-[100] bg-white p-6 rounded-[2rem] border border-slate-100 shadow-2xl w-[320px] sm:w-[340px] animate-in fade-in slide-in-from-top-2 duration-200';
+        document.body.appendChild(popup);
+      }
+
+      const btn = document.getElementById(`btn-${field}-date`);
+      const rect = btn.getBoundingClientRect();
+      popup.style.top = `${rect.bottom + window.scrollY + 6}px`;
+      popup.style.left = `${rect.left + window.scrollX}px`;
+      popup.style.display = 'block';
+
+      renderCustomCalendar();
+    }
+
+    function renderCustomCalendar() {
+      const popup = document.getElementById('custom-calendar-popup');
+      if (!popup) return;
+
+      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      const todayStr = new Date().toISOString().split('T')[0];
+      const selectedPickup = wizardBookingForm.pickupDate || '';
+      const selectedReturn = wizardBookingForm.returnDate || '';
+
+      let html = `
+        <div class="flex items-center justify-between mb-5 px-1" onclick="event.stopPropagation()">
+          <button onclick="changeCalendarMonth(-1); event.stopPropagation();" class="p-2 border rounded-full hover:bg-slate-50 transition text-slate-500 font-bold text-xs">&lt;</button>
+          <span class="font-extrabold text-slate-800 text-sm">${monthNames[calendarMonth]} ${calendarYear}</span>
+          <button onclick="changeCalendarMonth(1); event.stopPropagation();" class="p-2 border rounded-full hover:bg-slate-50 transition text-slate-500 font-bold text-xs">&gt;</button>
+        </div>
+        <div class="grid grid-cols-7 gap-1 text-center text-[11px] font-black text-slate-400 uppercase tracking-wider mb-3" onclick="event.stopPropagation()">
+          <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
+        </div>
+        <div class="grid grid-cols-7 gap-y-2 gap-x-1 justify-items-center" onclick="event.stopPropagation()">
+      `;
+
+      const firstDayIndex = new Date(calendarYear, calendarMonth, 1).getDay();
+      const prevMonthTotalDays = new Date(calendarYear, calendarMonth, 0).getDate();
+      const currentMonthTotalDays = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+
+      const daysArray = [];
+      for (let i = firstDayIndex - 1; i >= 0; i--) daysArray.push({ date: new Date(calendarYear, calendarMonth - 1, prevMonthTotalDays - i), isCurrent: false });
+      for (let d = 1; d <= currentMonthTotalDays; d++) daysArray.push({ date: new Date(calendarYear, calendarMonth, d), isCurrent: true });
+      for (let d = 1; d <= 42 - daysArray.length; d++) daysArray.push({ date: new Date(calendarYear, calendarMonth + 1, d), isCurrent: false });
+
+      daysArray.forEach(item => {
+        const d = item.date;
+        const dStr = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+        const isPast = dStr < todayStr;
+
+        let isInRange = false;
+        if (selectedPickup && selectedReturn) {
+          isInRange = dStr >= selectedPickup && dStr <= selectedReturn;
+        } else if (activeCalendarField === 'pickup') {
+          isInRange = selectedPickup === dStr;
+        } else {
+          isInRange = selectedReturn === dStr;
+        }
+
+        let cellClass = "w-9 h-9 flex items-center justify-center text-xs font-bold rounded-full transition-all relative cursor-pointer ";
+        if (isInRange) {
+          cellClass += "bg-[#fca5a5] text-white shadow-sm";
+        } else if (isPast && item.isCurrent) {
+          cellClass += "text-slate-300 pointer-events-none cursor-not-allowed bg-slate-50/50";
+        } else if (item.isCurrent) {
+          cellClass += "text-slate-700 hover:bg-pink-50 hover:text-pink-600";
+        } else {
+          cellClass += "text-slate-300 hover:bg-slate-50";
+        }
+
+        const isReturnDisabled = activeCalendarField === 'return' && selectedPickup && (wizardMode === 'daily' ? dStr <= selectedPickup : dStr < selectedPickup);
+        const isDisabled = isPast || isReturnDisabled;
+
+        const clickAttr = isDisabled ? '' : `onclick="selectCalendarDate('${dStr}')"`;
+        const disabledClass = isDisabled ? 'opacity-40 pointer-events-none' : '';
+
+        html += `<button class="${cellClass} ${disabledClass}" ${clickAttr}>${d.getDate()}</button>`;
+      });
+
+      html += `</div>`;
+      popup.innerHTML = html;
+    }
+
+    window.changeCalendarMonth = function (offset) {
+      calendarMonth += offset;
+      if (calendarMonth < 0) { calendarMonth = 11; calendarYear -= 1; }
+      else if (calendarMonth > 11) { calendarMonth = 0; calendarYear += 1; }
+      renderCustomCalendar();
+    }
+
+    window.selectCalendarDate = function (dateStr) {
+      const formatted = dateStr.split('-').reverse().join('/');
+      if (activeCalendarField === 'pickup') {
+        wizardBookingForm.pickupDate = dateStr;
+        document.getElementById('txt-pickup-date').textContent = formatted;
+
+        if (wizardMode === 'hourly') {
+          wizardBookingForm.returnDate = dateStr;
+          document.getElementById('txt-return-date').textContent = formatted;
+        } else if (wizardBookingForm.returnDate && wizardBookingForm.returnDate < dateStr) {
+          wizardBookingForm.returnDate = "";
+          document.getElementById('txt-return-date').textContent = "Ngày trả";
+        }
+      } else {
+        wizardBookingForm.returnDate = dateStr;
+        document.getElementById('txt-return-date').textContent = formatted;
+      }
+      closeAllDropdowns();
+    }
+
+    window.toggleCustomTimeDropdown = function (field) {
+      closeAllDropdowns(field);
+      const dropdown = document.getElementById(`dropdown-${field}-time`);
+      if (!dropdown) return;
+
+      if (dropdown.classList.contains('hidden')) {
+        dropdown.classList.remove('hidden');
+        let html = '';
+        for (let h = 7; h <= 21; h++) {
+          const time = `${h.toString().padStart(2, '0')}:00`;
+          const isSelected = (field === 'pickup' ? wizardBookingForm.pickupTime : wizardBookingForm.returnTime) === time;
+          const bgClass = isSelected ? 'bg-[#df52cc] text-white shadow-md' : 'text-slate-700 hover:bg-pink-50 hover:text-pink-600';
+          html += `<button onclick="selectCustomTime('${field}', '${time}')" class="py-2 text-[11px] font-black rounded-xl transition ${bgClass}">${time}</button>`;
+        }
+        dropdown.innerHTML = html;
+      } else {
+        dropdown.classList.add('hidden');
+      }
+    }
+
+    window.selectCustomTime = function (field, time) {
+      if (field === 'pickup') {
+        wizardBookingForm.pickupTime = time;
+        document.getElementById('txt-pickup-time').textContent = time;
+      } else {
+        wizardBookingForm.returnTime = time;
+        document.getElementById('txt-return-time').textContent = time;
+      }
+      closeAllDropdowns();
+    }
+
+    window.closeAllDropdowns = function (exceptField) {
+      const popup = document.getElementById('custom-calendar-popup');
+      if (popup) popup.style.display = 'none';
+      if (exceptField !== 'pickup') document.getElementById('dropdown-pickup-time')?.classList.add('hidden');
+      if (exceptField !== 'return') document.getElementById('dropdown-return-time')?.classList.add('hidden');
+    }
+    document.addEventListener('click', () => closeAllDropdowns());
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        document.getElementById('gallery-zoom-modal').classList.add('hidden')
+      }
+    });
+
+    function gotoWizardStep(step) {
+      wizardStep = step;
+      const steps = ['dates', 'select', 'details', 'confirm', 'success'];
+
+      steps.forEach(s => {
+        const pane = document.getElementById(`wizard-step-${s}`);
+        if (pane) {
+          if (s === step) pane.classList.remove('hidden');
+          else pane.classList.add('hidden');
+        }
+
+        // Bubbles update
+        const bubble = document.getElementById(`step-bubble-${s}`);
+        if (bubble) {
+          let bubbleClass = "w-9 h-9 rounded-full flex items-center justify-center font-bold transition-all ";
+          if (s === step) {
+            bubbleClass += "bg-pink-600 text-white shadow-lg";
+            // Highlight text label
+            bubble.parentElement.classList.add('text-pink-600', 'font-bold');
+          } else {
+            bubbleClass += "bg-gray-200 text-gray-500";
+            bubble.parentElement.classList.remove('text-pink-600', 'font-bold');
+          }
+          bubble.className = bubbleClass;
+        }
+      });
+
+      // Progress bar widths
+      const bar = document.getElementById('wizard-progress-bar');
+      if (bar) {
+        if (step === 'dates') bar.style.width = '0%';
+        else if (step === 'select') bar.style.width = '33%';
+        else if (step === 'details') bar.style.width = '66%';
+        else if (step === 'confirm' || step === 'success') bar.style.width = '100%';
+      }
+
+      window.scrollTo(0, document.getElementById('booking-section').offsetTop - 120);
+    }
+
+    function validateStepDates() {
+      const pD = wizardBookingForm.pickupDate;
+      const rD = wizardBookingForm.returnDate;
+      const pT = wizardBookingForm.pickupTime;
+      const rT = wizardBookingForm.returnTime;
+
+      if (!pD || !rD || !pT || !rT) {
+        return alert('Vui lòng chọn đầy đủ Ngày và Giờ nhận/trả máy ảnh!');
+      }
+
+      const t1 = new Date(pD + 'T' + pT);
+      const t2 = new Date(rD + 'T' + rT);
+
+      if (t2 <= t1) {
+        return alert('Thời gian trả máy phải sau thời gian nhận máy ảnh!');
+      }
+
+      // Filter and load available cameras in Step 2
+      loadWizardCameras();
+      gotoWizardStep('select');
+    }
+
+    let wizardCameraList = [];
+    function loadWizardCameras() {
+      if (!db) return;
+      db.transaction('cameras').objectStore('cameras').getAll().onsuccess = (e) => {
+        const list = (e.target.result || []).filter(c => c.status === 'active' && c.available > 0);
+        wizardCameraList = list;
+        renderWizardCamerasGrid(list);
+      };
+    }
+
+    function renderWizardCamerasGrid(list) {
+      const grid = document.getElementById('wizard-cameras-grid');
+      if (!grid) return;
+      grid.innerHTML = '';
+
+      if (list.length === 0) {
+        grid.innerHTML = `<div class="col-span-full text-center text-gray-400 italic py-12 font-bold">Không có máy ảnh nào sẵn có trong khoảng thời gian này!</div>`;
+        return;
+      }
+
+      list.forEach((c, index) => {
+        const card = document.createElement('div');
+        card.className = "glass-card p-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative group";
+
+        // Picture thumbnails rendering logic
+        const mainImg = c.images && c.images[0] ? c.images[0] : 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80&w=400';
+        const imgDisplayId = `main-img-display-${index}`;
+
+        let galleryPreview = '';
+        if (c.images && c.images.length > 1) {
+          galleryPreview = `<div class="flex gap-2 justify-center mt-3">`;
+          c.images.slice(1, 4).forEach((img, idx) => {
+            galleryPreview += `
+              <div 
+                onclick="openGalleryZoom('${img}')" 
+                class="w-10 h-10 rounded-lg overflow-hidden border border-pink-200 hover:border-pink-400 bg-cover bg-center shrink-0 cursor-pointer hover:scale-110 hover:shadow-lg transition-all shadow-sm" 
+                style="background-image: url('${img}')"></div>
+            `;
+          });
+          galleryPreview += `</div>`;
+        }
+
+        card.innerHTML = `
+          <div class="space-y-4">
+            <div class="rounded-2xl overflow-hidden aspect-[16/10] relative shadow-inner border border-white">
+              <img id="${imgDisplayId}" src="${mainImg}" alt="${c.name}" onclick="openGalleryZoom(this.src)" class="cursor-zoom-in w-full h-full object-cover group-hover:scale-105 transition-all duration-500">
+              <span class="absolute top-3 left-3 bg-pink-600 text-white font-black text-[9px] uppercase tracking-wider px-3 py-1 rounded-full shadow-sm">
+                ${c.category}
+              </span>
+            </div>
+
+            ${galleryPreview}
+
+            <div class="space-y-1">
+              <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none">${c.brand}</p>
+              <h4 class="text-base font-black text-gray-800 leading-tight line-clamp-1">${c.name}</h4>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 text-center text-xs">
+              <div class="bg-pink-500/5 p-2 rounded-xl border border-pink-500/10">
+                <p class="text-[8px] font-bold text-pink-600 uppercase">Theo giờ (1h)</p>
+                <p class="font-extrabold text-pink-600">${Number(c.hourlyRate).toLocaleString('vi-VN')}đ</p>
+              </div>
+              <div class="bg-pink-500/5 p-2 rounded-xl border border-pink-500/10">
+                <p class="text-[8px] font-bold text-pink-600 uppercase">Cả ngày (24h)</p>
+                <p class="font-black text-pink-600">${Number(c.fullDayRate).toLocaleString('vi-VN')}đ</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between border-t border-gray-100 pt-4 mt-6">
+            <div>
+              <p class="text-[8px] font-bold text-gray-400 uppercase">Tình trạng</p>
+              <p class="text-xs font-bold text-green-600">Sẵn có (${c.available} máy)</p>
+            </div>
+            <button onclick="selectWizardCamera(${c.id})" class="btn-primary px-5 py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
+              Chọn máy <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+      lucide.createIcons();
+    }
+
+    function filterWizardCameras() {
+      const brand = document.getElementById('cust-brand-filter').value;
+      const cat = document.getElementById('cust-cat-filter').value;
+      const query = document.getElementById('wizard-search-input').value.trim().toLowerCase();
+
+      const filtered = wizardCameraList.filter(c => {
+        const mBrand = brand === 'all' || c.brand === brand;
+        const mCat = cat === 'all' || c.category === cat;
+        const mQuery = c.name.toLowerCase().includes(query) || c.brand.toLowerCase().includes(query);
+        return mBrand && mCat && mQuery;
+      });
+
+      renderWizardCamerasGrid(filtered);
+    }
+
+    function selectWizardCamera(id) {
+      const gear = wizardCameraList.find(c => c.id === id);
+      if (!gear) return;
+      wizardSelectedGear = gear;
+
+      // Populate Step 3 details card
+      const mainImg = gear.images && gear.images[0] ? gear.images[0] : 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80&w=400';
+      document.getElementById('details-camera-preview-img').style.backgroundImage = `url('${mainImg}')`;
+      document.getElementById('details-camera-name').innerText = gear.name;
+
+      const calc = getCalculatedRentalInvoice();
+      document.getElementById('details-camera-days-cost').innerText = `Thời gian thuê: ${calc.durationLabel}`;
+
+      // Prefill fields
+      document.getElementById('form-cust-name').value = wizardBookingForm.name;
+      document.getElementById('form-cust-phone').value = wizardBookingForm.phone;
+      document.getElementById('form-cust-email').value = wizardBookingForm.email;
+      document.getElementById('form-cust-deposit').value = wizardBookingForm.deposit;
+      document.getElementById('form-cust-notes').value = wizardBookingForm.notes;
+
+      gotoWizardStep('details');
+    }
+
+    function getCalculatedRentalInvoice() {
+      if (!wizardSelectedGear) return {};
+      const pickupDate = wizardBookingForm.pickupDate;
+      const pickupTime = wizardBookingForm.pickupTime;
+      const returnDate = wizardBookingForm.returnDate;
+      const returnTime = wizardBookingForm.returnTime;
+
+      let durationLabel = '';
+      let totalAmount = 0;
+
+      if (wizardMode === 'hourly') {
+        const t1 = new Date(pickupDate + 'T' + pickupTime);
+        const t2 = new Date(pickupDate + 'T' + returnTime);
+        const diffHours = (t2 - t1) / (1000 * 60 * 60);
+        const h = Math.max(0, diffHours);
+
+        durationLabel = `${h} Giờ`;
+        const hourlyRate = wizardSelectedGear.hourlyRate || Math.round(wizardSelectedGear.fullDayRate / 24);
+        totalAmount = h * hourlyRate;
+      } else {
+        const start = new Date(pickupDate);
+        const end = new Date(returnDate);
+        start.setHours(0, 0, 0, 0); end.setHours(0, 0, 0, 0);
+        const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+
+        durationLabel = `${days} ngày`;
+        totalAmount = days * wizardSelectedGear.fullDayRate;
+      }
+
+      return {
+        durationLabel,
+        totalAmount,
+        totalAmountStr: totalAmount.toLocaleString('vi-VN') + 'đ',
+        pickupDateStr: new Date(pickupDate).toLocaleDateString('vi-VN') + ` (${pickupTime})`,
+        returnDateStr: new Date(returnDate).toLocaleDateString('vi-VN') + ` (${returnTime})`
+      };
+    }
+
+    function submitDetailsForm() {
+      const name = document.getElementById('form-cust-name').value.trim();
+      const phone = document.getElementById('form-cust-phone').value.trim();
+      const email = document.getElementById('form-cust-email').value.trim();
+      const deposit = document.getElementById('form-cust-deposit').value;
+      const notes = document.getElementById('form-cust-notes').value.trim();
+
+      if (!name || !phone || !email) {
+        return alert('Vui lòng điền đầy đủ thông tin Họ tên, Số điện thoại và Email liên hệ!');
+      }
+
+      wizardBookingForm.name = name;
+      wizardBookingForm.phone = phone;
+      wizardBookingForm.email = email;
+      wizardBookingForm.deposit = deposit;
+      wizardBookingForm.notes = notes;
+
+      // Populate Step 4 invoice preview
+      const calc = getCalculatedRentalInvoice();
+
+      document.getElementById('confirm-name').innerText = name;
+      document.getElementById('confirm-phone').innerText = phone;
+      document.getElementById('confirm-email').innerText = email;
+      document.getElementById('confirm-camera').innerText = wizardSelectedGear.name;
+      document.getElementById('confirm-time-start').innerText = calc.pickupDateStr;
+      document.getElementById('confirm-time-end').innerText = calc.returnDateStr;
+
+      let depLabel = 'Cọc CCCD + Tài sản';
+      if (deposit === 'cccd-80') depLabel = 'CCCD + 80% máy';
+      if (deposit === '100') depLabel = 'Cọc tiền 100% máy';
+      document.getElementById('confirm-deposit').innerText = depLabel;
+
+      if (notes) {
+        document.getElementById('confirm-notes-box').classList.remove('hidden');
+        document.getElementById('confirm-notes').innerText = notes;
+      } else {
+        document.getElementById('confirm-notes-box').classList.add('hidden');
+      }
+
+      document.getElementById('confirm-total-amount').innerText = calc.totalAmountStr;
+
+      // Sync Bank settings details
+      const bank = currentStoreCfg.bank || 'Vietinbank';
+      const acc = currentStoreCfg.account || '1098.7456.9999';
+      const owner = currentStoreCfg.owner || 'NGUYEN VAN AN';
+
+      document.getElementById('confirm-bank-name').innerText = bank;
+      document.getElementById('confirm-bank-acc').innerText = acc;
+      document.getElementById('confirm-bank-owner').innerText = owner;
+
+      // Noi dung chuyen khoan: [Tên] DAT COC THUE [Tên máy]
+      const cleanName = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+      const syntax = `${cleanName} DAT COC THUE ${wizardSelectedGear.brand.toUpperCase()}`;
+      document.getElementById('confirm-syntax').innerText = syntax;
+
+      // Load dynamic QR VietQR OR custom uploaded QR
+      let qrUrl = '';
+      if (currentStoreCfg && currentStoreCfg.qrImage) {
+        qrUrl = currentStoreCfg.qrImage;
+      } else {
+        const cleanAcc = acc.replace(/[^0-9]/g, '');
+        qrUrl = `https://img.vietqr.io/image/${bank.toLowerCase()}-${cleanAcc}-compact2.png?amount=${calc.totalAmount}&addInfo=${encodeURIComponent(syntax)}`;
+      }
+      document.getElementById('confirm-qr-wrapper').style.backgroundImage = `url('${qrUrl}')`;
+
+      gotoWizardStep('confirm');
+    }
+
+    function finalizeBookingRequest() {
+      if (!db || !wizardSelectedGear) return;
+      const calc = getCalculatedRentalInvoice();
+
+      const booking = {
+        name: wizardBookingForm.name,
+        phone: wizardBookingForm.phone,
+        email: wizardBookingForm.email,
+        cameraName: wizardSelectedGear.name,
+        start: wizardBookingForm.pickupDate,
+        end: wizardBookingForm.returnDate,
+        timeRange: `${wizardBookingForm.pickupTime} → ${wizardBookingForm.returnTime}`,
+        depositMethod: wizardBookingForm.deposit,
+        total: calc.totalAmountStr,
+        status: 'pending',
+        notes: wizardBookingForm.notes,
+        createdAt: new Date().toISOString()
+      };
+
+      const tx = db.transaction('bookings', 'readwrite');
+      const store = tx.objectStore('bookings');
+      const req = store.add(booking);
+
+      req.onsuccess = (e) => {
+        const newId = e.target.result;
+
+        let depLabel = 'Cọc CCCD + Tài sản';
+        if (wizardBookingForm.deposit === 'cccd-80') depLabel = 'CCCD + 80% máy';
+        if (wizardBookingForm.deposit === '100') depLabel = 'Cọc 100% máy';
+
+        // Success screen values
+        document.getElementById('success-order-id').innerText = `#${newId}`;
+        document.getElementById('success-order-camera').innerText = wizardSelectedGear.name;
+        document.getElementById('success-order-cust').innerText = wizardBookingForm.name;
+        document.getElementById('success-order-time').innerText = `${booking.start} (${wizardBookingForm.pickupTime}) → ${booking.end} (${wizardBookingForm.returnTime})`;
+        document.getElementById('success-order-deposit').innerText = depLabel;
+        document.getElementById('success-order-total').innerText = calc.totalAmountStr;
+
+        gotoWizardStep('success');
+      };
+
+      tx.oncomplete = () => {
+        renderAll();
+      };
+    }
+
+    function resetWizard() {
+      wizardBookingForm.name = '';
+      wizardBookingForm.phone = '';
+      wizardBookingForm.email = '';
+      wizardBookingForm.notes = '';
+      wizardSelectedGear = null;
+      gotoWizardStep('dates');
+    }
+
+    // ----------------------------------------------------
+    // TAB 1: ADMIN CAMERA MANAGEMENT (GEAR MANAGER)
+    // ----------------------------------------------------
+    let selectedRatesMap = {};
+
+    function renderAdminCameras(list) {
+      const grid = document.getElementById('admin-cameras-grid');
+      if (!grid) return;
+      grid.innerHTML = '';
+
+      const query = adminGearSearchTerm.trim().toLowerCase();
+      const filtered = list.filter(c => {
+        return c.name.toLowerCase().includes(query) || c.brand.toLowerCase().includes(query) || c.model.toLowerCase().includes(query);
+      });
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `<div class="col-span-full text-center text-gray-400 font-bold py-12 italic">Không tìm thấy máy ảnh nào trong kho!</div>`;
+        return;
+      }
+
+      filtered.forEach(c => {
+        const card = document.createElement('div');
+        card.className = "glass-card p-6 flex flex-col justify-between hover:shadow-lg transition-all border border-transparent hover:border-pink-300 relative";
+
+        // Status class badge
+        let statusBadge = '<span class="px-2.5 py-1 bg-green-50 text-green-600 border border-green-200 rounded-full text-[9px] font-black uppercase">Hoạt động</span>';
+        if (c.status === 'maintenance') statusBadge = '<span class="px-2.5 py-1 bg-yellow-50 text-yellow-600 border border-yellow-200 rounded-full text-[9px] font-black uppercase">Bảo trì</span>';
+        if (c.status === 'retired') statusBadge = '<span class="px-2.5 py-1 bg-gray-100 text-gray-600 border border-gray-200 rounded-full text-[9px] font-black uppercase">Ngừng hoạt động</span>';
+
+        const viewRate = selectedRatesMap[c.id] || 'fullDayRate';
+        const displayedPrice = viewRate === 'fullDayRate' ? c.fullDayRate : c.hourlyRate;
+
+        // Pic previews
+        let mainImg = c.images && c.images[0] ? c.images[0] : 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80&w=400';
+        let thumbGrid = '';
+        if (c.images && c.images.length > 1) {
+          thumbGrid = `<div class="flex gap-1 overflow-x-auto pt-2">`;
+          c.images.slice(1, 4).forEach(img => {
+            thumbGrid += `<img src="${img}" class="w-9 h-9 rounded-lg border border-pink-100 object-cover shrink-0 cursor-zoom-in hover:border-pink-400" onclick="openGalleryZoom('${img}')">`;
+          });
+          if (c.images.length > 4) {
+            thumbGrid += `<div class="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center text-[9px] font-bold text-gray-400 border border-pink-100">+${c.images.length - 4}</div>`;
+          }
+          thumbGrid += `</div>`;
+        }
+
+        card.innerHTML = `
+          <div class="space-y-4">
+            <div class="rounded-xl overflow-hidden aspect-[16/10] relative shadow-sm border border-gray-100 bg-gray-50">
+              <img src="${mainImg}" alt="${c.name}" onclick="openGalleryZoom(this.src)" class="cursor-zoom-in w-full h-full object-cover hover:scale-105 transition-all duration-500">
+            </div>
+
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <i data-lucide="camera" class="w-5 h-5 text-pink-500 shrink-0"></i>
+                <div class="min-w-0">
+                  <h4 class="font-bold text-gray-800 text-sm truncate leading-none">${c.name}</h4>
+                  <p class="text-[10px] text-gray-400 font-semibold truncate mt-1">${c.brand} ${c.model}</p>
+                </div>
+              </div>
+              ${statusBadge}
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <p class="text-[8px] text-gray-400 font-bold uppercase">Loại</p>
+                <p class="font-extrabold text-gray-700 truncate">${c.category}</p>
+              </div>
+              <div>
+                <p class="text-[8px] text-gray-400 font-bold uppercase">Tình trạng</p>
+                <p class="font-extrabold text-gray-700">${c.available}/${c.quantity} Sẵn có</p>
+              </div>
+            </div>
+
+            <!-- Rates dynamic selector -->
+            <div class="border-t pt-2 space-y-1">
+              <p class="text-[8px] text-gray-400 font-bold uppercase">Giá thuê</p>
+              <select onchange="updateGearDisplayRate(${c.id}, this.value)"
+                class="bg-white border rounded-lg px-2 py-1.5 text-xs font-bold text-gray-700 focus:outline-none w-full cursor-pointer shadow-sm">
+                <option value="hourlyRate" ${viewRate === 'hourlyRate' ? 'selected' : ''}>Theo giờ (1h)</option>
+                <option value="fullDayRate" ${viewRate === 'fullDayRate' ? 'selected' : ''}>Cả ngày (24 Tiếng)</option>
+              </select>
+              <p class="text-sm font-black text-pink-600 mt-1">${Number(displayedPrice).toLocaleString('vi-VN')}đ</p>
+            </div>
+
+            ${thumbGrid}
+
+          </div>
+
+          <div class="flex items-center gap-2 border-t pt-4 mt-6">
+            <button onclick="openEditGearModal(${c.id})" class="flex-1 py-2 bg-white hover:bg-pink-50 border rounded-xl font-bold text-xs text-gray-600 transition flex items-center justify-center gap-1.5">
+              <i data-lucide="edit" class="w-3.5 h-3.5 text-pink-500"></i> Sửa
+            </button>
+            <button onclick="deleteGearItem(${c.id})" class="p-2 border rounded-xl hover:bg-red-50 text-gray-400 hover:text-red-500 hover:border-red-200 transition">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+      lucide.createIcons();
+    }
+
+    function updateGearDisplayRate(id, rate) {
+      selectedRatesMap[id] = rate;
+      renderAll();
+    }
+
+    function saveGearItem() {
+      if (!db) return;
+      const id = document.getElementById('edit-gear-id').value;
+      const brand = document.getElementById('gear-brand').value.trim();
+      const model = document.getElementById('gear-model').value.trim();
+      const name = document.getElementById('gear-name').value.trim();
+      const category = document.getElementById('gear-category').value;
+      const status = document.getElementById('gear-status').value;
+      const rate1h = Number(document.getElementById('gear-rate-6h').value.trim());
+      const rate24h = Number(document.getElementById('gear-rate-24h').value.trim());
+      const qty = Number(document.getElementById('gear-qty').value.trim());
+      const avail = Number(document.getElementById('gear-avail').value.trim());
+
+      if (!brand || !model || !name || isNaN(rate1h) || rate1h <= 0 || isNaN(rate24h) || rate24h <= 0) {
+        return alert('Vui lòng nhập đầy đủ hãng, model, tên hiển thị và giá thuê hợp lệ!');
+      }
+
+      const gear = {
+        brand,
+        model,
+        name,
+        category,
+        status,
+        hourlyRate: rate1h,
+        fullDayRate: rate24h,
+        quantity: qty,
+        available: avail
+      };
+
+      // Use currentGearImages
+      if (currentGearImages && currentGearImages.length > 0) {
+        gear.images = currentGearImages;
+      } else if (id) {
+        // When editing and no new images provided, keep existing images
+        // This will be handled in the database transaction
+      } else {
+        // For new items without images
+        gear.images = ['../camera-rental-cms-hq-main/public/placeholder.jpg'];
+      }
+
+      const tx = db.transaction('cameras', 'readwrite');
+      const store = tx.objectStore('cameras');
+
+      if (id) {
+        gear.id = Number(id);
+        store.get(Number(id)).onsuccess = (e) => {
+          const old = e.target.result;
+          // If no new images were selected, keep existing ones
+          if ((!currentGearImages || currentGearImages.length === 0) && old && old.images) {
+            gear.images = old.images;
+          }
+          store.put(gear);
+        };
+      } else {
+        store.add(gear);
+      }
+
+      tx.oncomplete = () => {
+        closeGearDialog();
+        renderAll();
+      };
+    }
+
+    // Global variable to store current gear images during editing
+    let currentGearImages = [];
+
+    // Image Management Functions
+    function renderGearImagePreviews() {
+      const mainPreview = document.getElementById('gear-main-image-preview');
+      const secondaryGrid = document.getElementById('gear-secondary-images-grid');
+      
+      if (!mainPreview || !secondaryGrid) return;
+      
+      secondaryGrid.innerHTML = '';
+      
+      if (currentGearImages.length === 0) {
+        mainPreview.innerHTML = '<p class="text-xs text-gray-400">Chưa có ảnh</p>';
+        mainPreview.className = 'w-full h-32 bg-gray-100 border border-gray-200 rounded-xl flex items-center justify-center text-gray-400';
+        return;
+      }
+      
+      // Display main image (first image)
+      mainPreview.style.backgroundImage = `url('${currentGearImages[0]}')`;
+      mainPreview.style.backgroundSize = 'cover';
+      mainPreview.style.backgroundPosition = 'center';
+      mainPreview.className = 'w-full h-32 bg-gray-100 border border-gray-200 rounded-xl bg-cover bg-center relative';
+      
+      // Add delete button to main image
+      mainPreview.innerHTML = `<button onclick="deleteGearImage(0)" class="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>`;
+      
+      // Display secondary images (thumbnails)
+      for (let i = 1; i < currentGearImages.length; i++) {
+        const thumbDiv = document.createElement('div');
+        thumbDiv.className = 'relative w-full h-24 bg-gray-100 border border-gray-200 rounded-lg overflow-hidden group';
+        thumbDiv.style.backgroundImage = `url('${currentGearImages[i]}')`;
+        thumbDiv.style.backgroundSize = 'cover';
+        thumbDiv.style.backgroundPosition = 'center';
+        
+        thumbDiv.innerHTML = `
+          <button onclick="deleteGearImage(${i})" class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
+            <i data-lucide="x" class="w-5 h-5 text-white"></i>
+          </button>
+        `;
+        
+        secondaryGrid.appendChild(thumbDiv);
+      }
+      
+      lucide.createIcons();
+    }
+
+    function deleteGearImage(index) {
+      if (!confirm('Bạn chắc chắn muốn xóa ảnh này?')) return;
+      currentGearImages.splice(index, 1);
+      renderGearImagePreviews();
+    }
+
+    function handleGearFileInputChange() {
+      const mainInput = document.getElementById('gear-file-input');
+      if (mainInput.files && mainInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          if (currentGearImages.length === 0) {
+            currentGearImages.push(e.target.result);
+          } else {
+            currentGearImages[0] = e.target.result;
+          }
+          renderGearImagePreviews();
+        };
+        reader.readAsDataURL(mainInput.files[0]);
+      }
+    }
+
+    function handleGearExtraFilesChange() {
+      const extraInput = document.getElementById('gear-extra-files');
+      if (!extraInput.files || extraInput.files.length === 0) return;
+      
+      let filesProcessed = 0;
+      for (let i = 0; i < extraInput.files.length; i++) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          currentGearImages.push(e.target.result);
+          filesProcessed++;
+          if (filesProcessed === extraInput.files.length) {
+            renderGearImagePreviews();
+            extraInput.value = ''; // Clear the input after processing
+          }
+        };
+        reader.readAsDataURL(extraInput.files[i]);
+      }
+    }
+
+    function handleAdminGearSearch(val) {
+      adminGearSearchTerm = val;
+      renderAll();
+    }
+
+    // Modal dialog add/edit gear managers
+    function openAddCameraModal() {
+      document.getElementById('gear-dialog-title').innerText = 'Thêm máy ảnh mới';
+      document.getElementById('edit-gear-id').value = '';
+      document.getElementById('gear-brand').value = '';
+      document.getElementById('gear-model').value = '';
+      document.getElementById('gear-name').value = '';
+      document.getElementById('gear-category').value = 'Mirrorless';
+      document.getElementById('gear-status').value = 'active';
+      document.getElementById('gear-rate-6h').value = '';
+      document.getElementById('gear-rate-24h').value = '';
+      document.getElementById('gear-qty').value = '1';
+      document.getElementById('gear-avail').value = '1';
+      document.getElementById('gear-file-input').value = '';
+      document.getElementById('gear-extra-files').value = '';
+      
+      // Reset images
+      currentGearImages = [];
+      renderGearImagePreviews();
+      
+      // Add event listeners
+      document.getElementById('gear-file-input').onchange = handleGearFileInputChange;
+      document.getElementById('gear-extra-files').onchange = handleGearExtraFilesChange;
+
+      document.getElementById('gear-dialog').classList.remove('hidden');
+    }
+
+    function openEditGearModal(id) {
+      if (!db) return;
+      document.getElementById('gear-dialog-title').innerText = `Chỉnh sửa máy ảnh #${id}`;
+      document.getElementById('edit-gear-id').value = id;
+
+      db.transaction('cameras').objectStore('cameras').get(id).onsuccess = (e) => {
+        const c = e.target.result;
+        if (c) {
+          document.getElementById('gear-brand').value = c.brand || '';
+          document.getElementById('gear-model').value = c.model || '';
+          document.getElementById('gear-name').value = c.name || '';
+          document.getElementById('gear-category').value = c.category || 'Mirrorless';
+          document.getElementById('gear-status').value = c.status || 'active';
+          document.getElementById('gear-rate-6h').value = c.hourlyRate || '';
+          document.getElementById('gear-rate-24h').value = c.fullDayRate || '';
+          document.getElementById('gear-qty').value = c.quantity || 1;
+          document.getElementById('gear-avail').value = c.available || 1;
+          document.getElementById('gear-file-input').value = '';
+          document.getElementById('gear-extra-files').value = '';
+          
+          // Load existing images
+          currentGearImages = c.images ? [...c.images] : [];
+          renderGearImagePreviews();
+          
+          // Add event listeners
+          document.getElementById('gear-file-input').onchange = handleGearFileInputChange;
+          document.getElementById('gear-extra-files').onchange = handleGearExtraFilesChange;
+
+          document.getElementById('gear-dialog').classList.remove('hidden');
+        }
+      };
+    }
+
+    function closeGearDialog() {
+      document.getElementById('gear-dialog').classList.add('hidden');
+      currentGearImages = [];
+    }
+
+    // Deprecated old saveGearItem function removed. The new multi-image version is defined earlier.
+
+
+    function deleteGearItem(id) {
+      if (!db) return;
+      if (!confirm('Xoá thiết bị máy ảnh này vĩnh viễn khỏi hệ thống?')) return;
+      const tx = db.transaction('cameras', 'readwrite');
+      tx.objectStore('cameras').delete(id);
+      tx.oncomplete = () => renderAll();
+    }
+
+    // ----------------------------------------------------
+    // TAB 2: BOOKING DASHBOARD (BOOKBOOK)
+    // ----------------------------------------------------
+    let bookingsSearchTerm = '';
+
+    function renderAdminBookingsStack(list) {
+      const stack = document.getElementById('admin-bookings-stack');
+      const fallback = document.getElementById('bookings-empty-fallback');
+      if (!stack) return;
+      stack.innerHTML = '';
+
+      const query = bookingsSearchTerm.trim().toLowerCase();
+      const statusFilter = document.getElementById('admin-booking-status-filter').value;
+      const dateFilter = document.getElementById('admin-booking-date-filter').value;
+
+      const filtered = list.filter(b => {
+        const mQuery = b.name.toLowerCase().includes(query) || (b.phone || '').includes(query) || b.cameraName.toLowerCase().includes(query);
+        const mStatus = statusFilter === 'all' || b.status === statusFilter;
+
+        // Date filters
+        let mDate = true;
+        if (dateFilter === 'today') {
+          mDate = new Date(b.createdAt).toDateString() === new Date().toDateString();
+        } else if (dateFilter === 'week') {
+          mDate = (new Date() - new Date(b.createdAt)) < 7 * 24 * 60 * 60 * 1000;
+        } else if (dateFilter === 'month') {
+          mDate = new Date(b.createdAt).getMonth() === new Date().getMonth();
+        }
+
+        return mQuery && mStatus && mDate;
+      });
+
+      document.getElementById('bookings-shown-count').innerText = filtered.length;
+      document.getElementById('bookings-total-count').innerText = list.length;
+
+      if (filtered.length === 0) {
+        fallback.classList.remove('hidden');
+        return;
+      }
+      fallback.classList.add('hidden');
+
+      filtered.reverse().forEach(b => {
+        const card = document.createElement('div');
+        card.className = "p-4 border rounded-2xl space-y-3 bg-white/40 shadow-sm hover:shadow-md transition";
+
+        let statusBadge = '';
+        if (b.status === 'pending') statusBadge = '<span class="px-2.5 py-1 bg-yellow-500 text-white rounded-xl text-[10px] font-black uppercase flex items-center gap-1"><i data-lucide="clock" class="w-3.5 h-3.5"></i> Chờ xác nhận</span>';
+        else if (b.status === 'confirmed') statusBadge = '<span class="px-2.5 py-1 bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase flex items-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> Đã xác nhận</span>';
+        else if (b.status === 'active') statusBadge = '<span class="px-2.5 py-1 bg-green-500 text-white rounded-xl text-[10px] font-black uppercase flex items-center gap-1"><i data-lucide="zap" class="w-3.5 h-3.5"></i> Đang thuê</span>';
+        else if (b.status === 'completed') statusBadge = '<span class="px-2.5 py-1 bg-gray-500 text-white rounded-xl text-[10px] font-black uppercase flex items-center gap-1"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Hoàn thành</span>';
+        else if (b.status === 'overtime') statusBadge = '<span class="px-2.5 py-1 bg-orange-500 text-white rounded-xl text-[10px] font-black uppercase flex items-center gap-1"><i data-lucide="alert-circle" class="w-3.5 h-3.5"></i> Quá hạn</span>';
+        else if (b.status === 'cancelled') statusBadge = '<span class="px-2.5 py-1 bg-red-500 text-white rounded-xl text-[10px] font-black uppercase flex items-center gap-1"><i data-lucide="x" class="w-3.5 h-3.5"></i> Đã hủy</span>';
+
+        let depLabel = 'Cọc CCCD + Tài sản';
+        if (b.depositMethod === 'cccd-80') depLabel = 'Cọc CCCD + 80% máy';
+        if (b.depositMethod === '100') depLabel = 'Cọc 100% máy';
+
+        card.innerHTML = `
+          <div class="flex justify-between items-start">
+            <div>
+              <h4 class="font-bold text-gray-800 text-base leading-tight">${b.name}</h4>
+              <p class="text-xs text-gray-500 mt-1 flex items-center gap-1"><i data-lucide="phone" class="w-3.5 h-3.5"></i> ${b.phone} | ${b.email || 'No email'}</p>
+            </div>
+            ${statusBadge}
+          </div>
+
+          <div class="grid md:grid-cols-2 gap-4 text-xs font-semibold text-gray-600 leading-relaxed border-t pt-3">
+            <div>
+              <p>Máy ảnh: <span class="text-gray-800 font-bold">${b.cameraName}</span></p>
+              <p class="flex items-center gap-1 mt-1"><i data-lucide="calendar" class="w-4 h-4 text-pink-500"></i> ${b.start} → ${b.end}</p>
+              <p class="flex items-center gap-1 mt-1"><i data-lucide="clock" class="w-4 h-4 text-pink-500"></i> Giờ: ${b.timeRange || 'Cả ngày'}</p>
+              <p class="mt-1">Phương thức cọc: <span class="text-pink-600 font-bold">${depLabel}</span></p>
+            </div>
+            <div class="text-left md:text-right">
+              <p class="md:mt-0">Ngày đặt đơn: ${new Date(b.createdAt || new Date()).toLocaleDateString('vi-VN')}</p>
+              <p class="text-base font-black text-pink-600 mt-2">Tổng tiền: ${b.total}</p>
+            </div>
+          </div>
+
+          ${b.notes ? `<p class="text-xs italic text-gray-400 bg-gray-50/50 p-2 rounded-xl mt-2 border-l-2 border-pink-300">Ghi chú: ${b.notes}</p>` : ''}
+        `;
+        stack.appendChild(card);
+      });
+      lucide.createIcons();
+    }
+
+    function filterBookingGrid() {
+      bookingsSearchTerm = document.getElementById('admin-booking-search').value;
+      renderAll();
+    }
+
+    // ----------------------------------------------------
+    // TAB 3: CALENDAR MANAGEMENT SYSTEM
+    // ----------------------------------------------------
+    let calViewMode = 'month';
+    let currentCalMonth = new Date().getMonth();
+    let currentCalYear = new Date().getFullYear();
+    const monthNamesVi = ["Tháng 01", "Tháng 02", "Tháng 03", "Tháng 04", "Tháng 05", "Tháng 06", "Tháng 07", "Tháng 08", "Tháng 09", "Tháng 10", "Tháng 11", "Tháng 12"];
+
+    function switchCalViewMode(mode) {
+      calViewMode = mode;
+
+      const monthPane = document.getElementById('cal-view-container-month');
+      const dayPane = document.getElementById('cal-view-container-day');
+
+      const monthBtn = document.getElementById('cal-mode-btn-month');
+      const dayBtn = document.getElementById('cal-mode-btn-day');
+
+      if (mode === 'month') {
+        monthPane.classList.remove('hidden');
+        dayPane.classList.add('hidden');
+        monthBtn.className = "px-4 py-2 text-xs font-bold rounded-xl bg-pink-600 text-white shadow-sm border border-transparent";
+        dayBtn.className = "px-4 py-2 text-xs font-bold rounded-xl bg-white border text-gray-600 hover:bg-gray-50";
+      } else {
+        monthPane.classList.add('hidden');
+        dayPane.classList.remove('hidden');
+        dayBtn.className = "px-4 py-2 text-xs font-bold rounded-xl bg-pink-600 text-white shadow-sm border border-transparent";
+        monthBtn.className = "px-4 py-2 text-xs font-bold rounded-xl bg-white border text-gray-600 hover:bg-gray-50";
+        renderDailyCalendar(new Date());
+      }
+      renderAll();
+    }
+
+    function navigateCalendarMonth(dir) {
+      currentCalMonth += dir;
+      if (currentCalMonth > 11) {
+        currentCalMonth = 0;
+        currentCalYear++;
+      } else if (currentCalMonth < 0) {
+        currentCalMonth = 11;
+        currentCalYear--;
+      }
+      renderAll();
+    }
+
+    function gotoTodayCalendar() {
+      const now = new Date();
+      currentCalMonth = now.getMonth();
+      currentCalYear = now.getFullYear();
+      if (calViewMode === 'day') {
+        renderDailyCalendar(now);
+      }
+      renderAll();
+    }
+
+    let calendarAllBookings = [];
+    function initCalendar(bookings) {
+      calendarAllBookings = bookings;
+      document.getElementById('calendar-header-title-text').innerText = `${monthNamesVi[currentCalMonth]} ${currentCalYear}`;
+
+      // Calculate general dynamic statistics for TARGET DAY
+      const targetDate = calViewMode === 'day' ? activeTimelineDate : new Date();
+      document.getElementById('cal-stats-target-date').innerText = targetDate.toLocaleDateString('vi-VN');
+
+      const activeList = bookings.filter(b => {
+        if (b.status === 'cancelled') return false;
+        const start = new Date(b.start);
+        const end = new Date(b.end);
+        start.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999);
+        return targetDate >= start && targetDate <= end;
+      });
+
+      const uniqueCameras = new Set(activeList.map(b => b.cameraName)).size;
+      const uniqueCustomers = new Set(activeList.map(b => b.name)).size;
+
+      document.getElementById('cal-stats-cameras').innerText = uniqueCameras;
+      document.getElementById('cal-stats-customers').innerText = uniqueCustomers;
+      document.getElementById('cal-stats-bookings').innerText = activeList.length;
+
+      if (calViewMode === 'month') {
+        renderMonthlyCalendar();
+      }
+    }
+
+    function renderMonthlyCalendar() {
+      const grid = document.getElementById('cal-monthly-days-grid');
+      if (!grid) return;
+      grid.innerHTML = '';
+
+      const firstDayIndex = new Date(currentCalYear, currentCalMonth, 1).getDay();
+      const numDays = new Date(currentCalYear, currentCalMonth + 1, 0).getDate();
+
+      // Draw blank leading cells
+      for (let i = 0; i < firstDayIndex; i++) {
+        const blank = document.createElement('div');
+        blank.className = "bg-white/40 min-h-[90px] border-b border-r p-2 text-transparent select-none";
+        blank.innerText = '-';
+        grid.appendChild(blank);
+      }
+
+      // Draw calendar days
+      for (let day = 1; day <= numDays; day++) {
+        const cell = document.createElement('div');
+        const dateStr = `${currentCalYear}-${(currentCalMonth + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+
+        const cellDate = new Date(currentCalYear, currentCalMonth, day);
+        cellDate.setHours(0, 0, 0, 0);
+
+        // Find active bookings on this day
+        const activeB = calendarAllBookings.filter(b => {
+          if (b.status === 'cancelled') return false;
+          const s = new Date(b.start);
+          const e = new Date(b.end);
+          s.setHours(0, 0, 0, 0);
+          e.setHours(23, 59, 59, 999);
+          return cellDate >= s && cellDate <= e;
+        });
+
+        const isToday = cellDate.toDateString() === new Date().toDateString();
+
+        let cellClass = "bg-white min-h-[90px] border-b border-r p-2 flex flex-col justify-between hover:bg-pink-50/50 transition cursor-pointer relative ";
+        if (isToday) {
+          cellClass += "bg-pink-500/5 border-2 border-pink-500/30";
+        }
+
+        let badges = '';
+        activeB.slice(0, 2).forEach(b => {
+          let badgeColor = 'bg-yellow-500';
+          if (b.status === 'confirmed') badgeColor = 'bg-blue-500';
+          if (b.status === 'active') badgeColor = 'bg-green-500';
+          if (b.status === 'overtime') badgeColor = 'bg-orange-500 animate-pulse';
+
+          badges += `<span class="${badgeColor} text-[8px] font-black text-white px-1.5 py-0.5 rounded truncate w-full shadow-sm" title="${b.name}">${b.name}</span>`;
+        });
+
+        if (activeB.length > 2) {
+          badges += `<span class="text-[8px] text-gray-400 font-bold leading-none">+${activeB.length - 2} đơn</span>`;
+        }
+
+        cell.className = cellClass;
+        cell.onclick = () => {
+          activeTimelineDate = cellDate;
+          switchCalViewMode('day');
+        };
+
+        cell.innerHTML = `
+          <div class="flex items-center justify-between w-full">
+            <span class="text-xs font-black ${isToday ? 'text-pink-600 font-extrabold bg-pink-100 px-1.5 py-0.5 rounded-lg' : 'text-gray-700'}">${day}</span>
+            ${isToday ? '<span class="w-1.5 h-1.5 rounded-full bg-pink-500"></span>' : ''}
+          </div>
+          <div class="flex flex-col gap-1 w-full mt-2">
+            ${badges}
+          </div>
+        `;
+        grid.appendChild(cell);
+      }
+
+      // Draw blank trailing cells to fill calendar grid
+      const totalCells = firstDayIndex + numDays;
+      const rem = totalCells % 7;
+      if (rem > 0) {
+        for (let i = 0; i < (7 - rem); i++) {
+          const blank = document.createElement('div');
+          blank.className = "bg-white/40 min-h-[90px] border-b border-r p-2 text-transparent select-none";
+          grid.appendChild(blank);
+        }
+      }
+    }
+
+    let activeTimelineDate = new Date();
+    function renderDailyCalendar(date) {
+      activeTimelineDate = date;
+      const stack = document.getElementById('cal-daily-timeline-stack');
+      if (!stack) return;
+      stack.innerHTML = '';
+
+      document.getElementById('cal-day-view-title').innerText = date.toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'numeric', day: 'numeric' });
+
+      // Build daily timeline 7h to 22h
+      const startHour = 7;
+      const endHour = 22;
+
+      // Find all bookings overlapping today
+      const dayStart = new Date(date);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(date);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const activeB = calendarAllBookings.filter(b => {
+        if (b.status === 'cancelled') return false;
+        const s = new Date(b.start);
+        const e = new Date(b.end);
+        s.setHours(0, 0, 0, 0);
+        e.setHours(23, 59, 59, 999);
+        return dayStart <= e && dayEnd >= s;
+      });
+
+      for (let h = startHour; h <= endHour; h++) {
+        const hourRow = document.createElement('div');
+        hourRow.className = "h-16 flex items-start justify-start border-t border-gray-100 relative group pl-4";
+        hourRow.innerHTML = `
+          <span class="absolute -left-12 -top-2.5 text-[9px] font-black text-gray-400 uppercase tracking-widest">${h}:00</span>
+        `;
+
+        // Render bookings overlapping this hour row
+        activeB.forEach(b => {
+          const sDate = new Date(b.start);
+          const eDate = new Date(b.end);
+          const pickT = b.timeRange ? b.timeRange.split('→')[0].trim() : '08:00';
+          const retT = b.timeRange ? b.timeRange.split('→')[1].trim() : '18:00';
+
+          const sHour = Number(pickT.split(':')[0]);
+          const eHour = Number(retT.split(':')[0]);
+
+          const isStartDay = sDate.toDateString() === date.toDateString();
+          const isEndDay = eDate.toDateString() === date.toDateString();
+
+          let renderEvent = false;
+          let eventType = '';
+
+          if (isStartDay && h === sHour) {
+            renderEvent = true;
+            eventType = 'delivery';
+          } else if (isEndDay && h === eHour) {
+            renderEvent = true;
+            eventType = 'return';
+          } else if (!isStartDay && !isEndDay && h === 12) {
+            // Render a mid-day active banner for fully overlapping days
+            renderEvent = true;
+            eventType = 'active';
+          }
+
+          if (renderEvent) {
+            const block = document.createElement('div');
+
+            let color = 'bg-indigo-600';
+            let title = `Giao máy: ${b.name}`;
+            if (eventType === 'return') {
+              color = 'bg-emerald-600';
+              title = `Trả máy: ${b.name}`;
+            } else if (eventType === 'active') {
+              color = 'bg-yellow-600';
+              title = `Đang thuê: ${b.name}`;
+            }
+
+            block.className = `absolute left-4 right-4 py-2 px-4 rounded-xl text-white text-[10px] font-black uppercase tracking-wider shadow-md ${color} z-10 hover:scale-[1.01] transition-transform duration-300`;
+            block.style.top = '6px';
+            block.innerHTML = `
+              <div class="flex justify-between items-center">
+                <span>${title} — ${b.cameraName}</span>
+                <span class="opacity-80">${pickT} → ${retT}</span>
+              </div>
+            `;
+            hourRow.appendChild(block);
+          }
+
+        });
+
+        stack.appendChild(hourRow);
+      }
+    }
+
+    // ----------------------------------------------------
+    // TAB 4: ADVANCED STATE MODIFICATION (ORDERS)
+    // ----------------------------------------------------
+    let mgmtSearchTerm = '';
+
+    function renderMgmtOrders(list) {
+      const container = document.getElementById('admin-mgmt-orders-list');
+      const fallback = document.getElementById('mgmt-empty-fallback');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const query = mgmtSearchTerm.trim().toLowerCase();
+      const statusFilter = document.getElementById('admin-mgmt-status-filter').value;
+
+      const filtered = list.filter(b => {
+        const mQuery = b.name.toLowerCase().includes(query) || b.id.toString().includes(query);
+        const mStatus = statusFilter === 'all' || b.status === statusFilter;
+        return mQuery && mStatus;
+      });
+
+      if (filtered.length === 0) {
+        fallback.classList.remove('hidden');
+        return;
+      }
+      fallback.classList.add('hidden');
+
+      filtered.reverse().forEach(b => {
+        const item = document.createElement('div');
+        item.className = "glass-card p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-lg transition-all border border-transparent hover:border-pink-300";
+
+        let statusClass = 'bg-yellow-50 text-yellow-600 border-yellow-200';
+        let statusLabel = 'Chờ xác nhận';
+        if (b.status === 'confirmed') { statusClass = 'bg-blue-50 text-blue-600 border-blue-200'; statusLabel = 'Đã xác nhận'; }
+        else if (b.status === 'active') { statusClass = 'bg-green-50 text-green-600 border-green-200'; statusLabel = 'Đang thuê'; }
+        else if (b.status === 'completed') { statusClass = 'bg-gray-50 text-gray-500 border-gray-200'; statusLabel = 'Hoàn thành'; }
+        else if (b.status === 'overtime') { statusClass = 'bg-orange-50 text-orange-600 border-orange-200 animate-pulse'; statusLabel = 'Quá hạn'; }
+        else if (b.status === 'cancelled') { statusClass = 'bg-red-50 text-red-600 border-red-200'; statusLabel = 'Đã hủy'; }
+
+        let depLabel = 'Cọc CCCD + Tài sản';
+        if (b.depositMethod === 'cccd-80') depLabel = 'Cọc CCCD + 80% máy';
+        if (b.depositMethod === '100') depLabel = 'Cọc 100% máy';
+
+        item.innerHTML = `
+          <div class="space-y-3 flex-1 text-xs font-semibold text-gray-600 leading-relaxed">
+            <div class="flex items-center gap-3">
+              <span class="text-pink-600 font-black text-sm">Đơn #${b.id}</span>
+              <span class="px-2.5 py-0.5 rounded-full border text-[9px] font-black uppercase ${statusClass}">${statusLabel}</span>
+            </div>
+
+            <div class="grid sm:grid-cols-2 gap-4">
+              <div>
+                <p class="text-gray-400 font-bold uppercase text-[9px]">Khách hàng</p>
+                <p class="text-sm font-black text-gray-800 mt-0.5">${b.name} (${b.phone})</p>
+                <p class="text-[10px] text-gray-500 mt-0.5">${b.email || 'No email'}</p>
+              </div>
+              <div>
+                <p class="text-gray-400 font-bold uppercase text-[9px]">Thiết bị đặt thuê</p>
+                <p class="text-sm font-black text-gray-800 mt-0.5">${b.cameraName}</p>
+                <p class="text-[10px] text-pink-600 font-bold mt-0.5">${depLabel}</p>
+              </div>
+            </div>
+
+            <div>
+              <p><span class="font-bold">Lịch trình:</span> ${b.start} → ${b.end} (${b.timeRange || 'Cả ngày'})</p>
+              ${b.notes ? `<p class="italic text-gray-400 bg-gray-50 p-2 rounded-xl mt-1.5 border-l-2 border-pink-300">Ghi chú: ${b.notes}</p>` : ''}
+            </div>
+          </div>
+
+          <div class="flex items-center gap-4 border-t md:border-t-0 pt-4 md:pt-0">
+            <div class="text-right hidden sm:block shrink-0">
+              <p class="text-[9px] font-bold text-gray-400 uppercase">Doanh thu</p>
+              <p class="text-xl font-black text-pink-600 leading-none mt-1">${b.total}</p>
+            </div>
+            
+            <button onclick="openBookingEditDialog(${b.id})" class="p-3 border rounded-xl hover:bg-pink-50 text-gray-400 hover:text-pink-500 transition">
+              <i data-lucide="edit" class="w-4 h-4"></i>
+            </button>
+            <button onclick="deleteBookingOrder(${b.id})" class="p-3 border rounded-xl hover:bg-red-50 text-gray-400 hover:text-red-500 transition">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+      lucide.createIcons();
+    }
+
+    function filterMgmtGrid() {
+      mgmtSearchTerm = document.getElementById('admin-mgmt-search').value;
+      renderAll();
+    }
+
+    // Modal dialog modifier
+    function openBookingEditDialog(id) {
+      if (!db) return;
+      document.getElementById('edit-booking-id').value = id;
+
+      db.transaction('bookings').objectStore('bookings').get(id).onsuccess = (e) => {
+        const b = e.target.result;
+        if (b) {
+          document.getElementById('edit-booking-cust').value = b.name || '';
+          document.getElementById('edit-booking-phone').value = b.phone || '';
+          document.getElementById('edit-booking-email').value = b.email || '';
+          document.getElementById('edit-booking-deposit').value = b.depositMethod || 'cccd-taisan';
+          document.getElementById('edit-booking-status').value = b.status || 'pending';
+          document.getElementById('edit-booking-notes').value = b.notes || '';
+
+          document.getElementById('booking-edit-dialog').classList.remove('hidden');
+        }
+      };
+    }
+
+    function closeBookingEditDialog() {
+      document.getElementById('booking-edit-dialog').classList.add('hidden');
+    }
+
+    function saveBookingDetails() {
+      if (!db) return;
+      const id = Number(document.getElementById('edit-booking-id').value);
+      const name = document.getElementById('edit-booking-cust').value.trim();
+      const phone = document.getElementById('edit-booking-phone').value.trim();
+      const email = document.getElementById('edit-booking-email').value.trim();
+      const depositMethod = document.getElementById('edit-booking-deposit').value;
+      const status = document.getElementById('edit-booking-status').value;
+      const notes = document.getElementById('edit-booking-notes').value.trim();
+
+      if (!name || !phone || !email) {
+        return alert('Vui lòng điền đầy đủ thông tin Họ tên, Số điện thoại và Email khách!');
+      }
+
+      const tx = db.transaction('bookings', 'readwrite');
+      const store = tx.objectStore('bookings');
+
+      store.get(id).onsuccess = (e) => {
+        const old = e.target.result;
+        if (old) {
+          const updated = { ...old, name, phone, email, depositMethod, status, notes };
+          store.put(updated);
+        }
+      };
+
+      tx.oncomplete = () => {
+        closeBookingEditDialog();
+        renderAll();
+      };
+    }
+
+    function deleteBookingOrder(id) {
+      if (!db) return;
+      if (!confirm('Xoá hoàn toàn đơn đặt thuê máy ảnh này khỏi hệ thống?')) return;
+      const tx = db.transaction('bookings', 'readwrite');
+      tx.objectStore('bookings').delete(id);
+      tx.oncomplete = () => renderAll();
+    }
+  </script>
+
+  <!-- Image overlay modal gallery zoom -->
+  <div id="gallery-zoom-modal" class="fixed inset-0 z-[1000] hidden flex items-center justify-center bg-black/95 p-4"
+    onclick="closeGalleryZoom()">
+    <button class="absolute top-6 right-6 text-white text-3xl font-black">&times;</button>
+    <div class="max-w-4xl max-h-[85vh] relative flex items-center justify-center" onclick="event.stopPropagation()">
+      <img id="gallery-zoom-img" src="" alt="Zoom Image"
+        class="max-w-full max-h-[80vh] rounded-xl object-contain shadow-2xl">
+
+      <!-- Navigation in Modal Zoom -->
+      <button id="zoom-prev-btn" onclick="navigateZoom(-1)"
+        class="absolute left-4 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition"><i
+          data-lucide="chevron-left" class="w-6 h-6"></i></button>
+      <button id="zoom-next-btn" onclick="navigateZoom(1)"
+        class="absolute right-4 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition"><i
+          data-lucide="chevron-right" class="w-6 h-6"></i></button>
+    </div>
+  </div>
+
+</body>
+
+</html>

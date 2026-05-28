@@ -9,7 +9,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
     domains: [
-      "firebasestorage.googleapis.com",
+      "bzagyowswyvmlnrpezcx.supabase.co",
       "lh3.googleusercontent.com",
     ],
   },

@@ -1,0 +1,31 @@
+DANH SÁCH CÁC PHẦN CẦN ĐIỀU CHỈNH ĐỂ KHỚP VỚI PROPOSAL (USTH)
+
+1. CƠ SỞ DỮ LIỆU (DATABASE):
+   - Hiện tại: Đang dùng Firebase (NoSQL).
+   - Yêu cầu: PostgreSQL hoặc MySQL (Relational).
+   - Giải pháp: Chuyển sang dùng Supabase (PostgreSQL) hoặc tự dựng Database MySQL/PostgreSQL và kết nối qua Prisma/Drizzle ORM. Điều này giúp bạn thiết kế được Database Schema đúng chuẩn học thuật.
+
+2. AUTHENTICATION & SECURITY (BẢO MẬT): DONE ✅
+   - Hiện tại: Check login bằng localStorage ("adminAuth" === "true") ở file app/admin/page.tsx.
+   - Yêu cầu: JWT-based Authentication và Role-Based Access Control (RBAC).
+   - Giải pháp: 
+     + Sử dụng Supabase Auth (cung cấp JWT mặc định).
+     + Xóa bỏ cơ chế check localStorage, thay bằng check Session từ Supabase.
+     + Cài đặt Middleware (file middleware.ts) để bảo vệ các route /admin, đảm bảo chỉ Admin có Token hợp lệ mới vào được.
+
+3. KIẾN TRÚC BACKEND (SERVER-SIDE):
+   - Hiện tại: Logic xử lý nằm rải rác trong component và Next.js API Routes.
+   - Yêu cầu: Node.js & Express RESTful API.
+   - Giải pháp: 
+     + Nếu muốn đúng 100% Proposal: Tách phần logic xử lý dữ liệu ra một folder server riêng chạy Node.js/Express.
+     + Nếu muốn giữ Next.js: Phải tổ chức lại các route trong app/api/ theo chuẩn RESTful (GET, POST, PUT, DELETE rõ ràng).
+
+4. QUẢN LÝ QUYỀN TRUY CẬP (RBAC):
+   - Hiện tại: Chỉ có 1 cấp độ Admin.
+   - Yêu cầu: Phân quyền (ví dụ: Owner, Manager, Staff).
+   - Giải pháp: Thêm trường 'role' vào bảng Users trong Database và kiểm tra quyền này mỗi khi thực hiện các hành động CRUD (Thêm/Xóa/Sửa).
+
+5. TỔNG KẾT VỀ MẶT HÌNH THỨC:
+   - Giao diện (UI/UX) và tính năng camera rental: Đã đạt yêu cầu, rất đẹp.
+   - Công nghệ cốt lõi (Next.js, TS, Tailwind): Đã đạt yêu cầu.
+   - Chỉ cần tập trung "chỉnh đốn" lại phần Database và Auth là sẽ khớp hoàn toàn với bản Proposal.

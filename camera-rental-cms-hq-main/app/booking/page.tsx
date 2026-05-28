@@ -85,7 +85,7 @@ export default function BookingPage() {
               </div>
               <div>
                 <h1 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent leading-tight">
-                  chupchoet.digicam
+                  Camera Rental demo
                 </h1>
                 <p className="text-[10px] sm:text-sm text-foreground/60">Camera Rental</p>
               </div>

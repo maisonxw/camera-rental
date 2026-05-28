@@ -31,8 +31,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, Edit, Trash2, Package, X, Camera } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { database } from "@/lib/firebase"
-import { ref, push, set, get, remove, update, onValue } from "firebase/database"
+import { supabase } from "@/lib/supabase"
 
 interface Camera {
   id: string
@@ -40,7 +39,7 @@ interface Camera {
   brand: string
   model: string
   category: string
-  sixHoursRate: number
+  oneHoursRate: number
   fullDayRate: number
   quantity: number
   available: number
@@ -84,67 +83,88 @@ export function CameraManagement() {
   const [selectedRates, setSelectedRates] = useState<Record<string, string>>({})
   const { toast } = useToast()
 
-  // Load cameras
+  // Load cameras from Supabase
   useEffect(() => {
-    const camerasRef = ref(database, "cameras")
-    const unsubscribe = onValue(camerasRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.val()
-        const list: Camera[] = Object.entries(data).map(([id, cam]: [string, any]) => ({
-          id,
-          ...cam,
-          images: cam.images || [],
-        }))
-        setCameras(list)
-      } else {
-        setCameras([])
-      }
-    }, (error) => {
-      console.error("Firebase error:", error)
-      loadFromLocalStorage()
-    })
-
-    const loadFromLocalStorage = () => {
+    const loadCameras = async () => {
       try {
-        const saved = localStorage.getItem("cameras")
-        if (saved) setCameras(JSON.parse(saved))
-      } catch (e) {
-        console.error("Lỗi localStorage:", e)
+        const { data, error } = await supabase
+          .from('cameras')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        if (error) throw error
+        if (data) setCameras(data as Camera[])
+      } catch (error) {
+        console.error("Lỗi khi tải dữ liệu từ Supabase:", error)
+        toast({
+          title: "Lỗi kết nối",
+          description: "Không thể tải dữ liệu từ Supabase. Kiểm tra lại cấu hình .env.local",
+          variant: "destructive"
+        })
       }
     }
-
-    return () => unsubscribe()
+    loadCameras()
   }, [])
 
   const handleAddCamera = async (data: Omit<Camera, "id">) => {
     try {
-      const newRef = push(ref(database, "cameras"))
-      await set(newRef, data)
-      toast({ title: "Thành công", description: "Đã thêm máy ảnh" })
+      const { error } = await supabase
+        .from('cameras')
+        .insert([data])
+
+      if (error) throw error
+
+      toast({ title: "Thành công", description: "Đã thêm máy ảnh mới" })
+
+      // Reload list
+      const { data: updatedList } = await supabase.from('cameras').select('*').order('created_at', { ascending: false })
+      if (updatedList) setCameras(updatedList as Camera[])
+
       setIsAddDialogOpen(false)
     } catch (error) {
-      fallbackSave(data)
+      console.error("Lỗi khi thêm:", error)
+      toast({ title: "Lỗi", description: "Không thể thêm máy ảnh", variant: "destructive" })
     }
   }
 
   const handleEditCamera = async (data: Omit<Camera, "id">) => {
     if (!editingCamera) return
     try {
-      await update(ref(database, `cameras/${editingCamera.id}`), data)
-      toast({ title: "Thành công", description: "Đã cập nhật" })
+      const { error } = await supabase
+        .from('cameras')
+        .update(data)
+        .eq('id', editingCamera.id)
+
+      if (error) throw error
+
+      toast({ title: "Thành công", description: "Đã cập nhật thông tin" })
+
+      // Refresh list
+      const { data: updatedList } = await supabase.from('cameras').select('*').order('created_at', { ascending: false })
+      if (updatedList) setCameras(updatedList as Camera[])
+
       setEditingCamera(null)
     } catch (error) {
-      fallbackUpdate(editingCamera.id, data)
+      console.error("Lỗi khi cập nhật:", error)
+      toast({ title: "Lỗi", description: "Cập nhật thất bại", variant: "destructive" })
     }
   }
 
   const handleDeleteCamera = async (id: string) => {
-    if (!confirm("Xóa máy ảnh này?")) return
+    if (!confirm("Xóa máy ảnh này vĩnh viễn?")) return
     try {
-      await remove(ref(database, `cameras/${id}`))
-      toast({ title: "Thành công", description: "Đã xóa" })
+      const { error } = await supabase
+        .from('cameras')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+
+      toast({ title: "Thành công", description: "Đã xóa máy ảnh" })
+      setCameras(cameras.filter(c => c.id !== id))
     } catch (error) {
-      fallbackDelete(id)
+      console.error("Lỗi khi xóa:", error)
+      toast({ title: "Lỗi", description: "Xóa thất bại", variant: "destructive" })
     }
   }
 
@@ -175,7 +195,7 @@ export function CameraManagement() {
   const getRatePrice = (camera: Camera, type: string) => {
     switch (type) {
       case "fullDayRate": return camera.fullDayRate
-      case "sixHoursRate": return camera.sixHoursRate || camera.fullDayRate
+      case "oneHoursRate": return camera.oneHoursRate || camera.fullDayRate
       default: return camera.fullDayRate
     }
   }
@@ -273,7 +293,7 @@ export function CameraManagement() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-gray-900 w-full min-w-full">
-                    <SelectItem value="sixHoursRate">Trong ngày</SelectItem>
+                    <SelectItem value="oneHoursRate">Theo giờ</SelectItem>
                     <SelectItem value="fullDayRate">1 ngày</SelectItem>
                   </SelectContent>
                 </Select>
@@ -377,7 +397,7 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
     model: camera?.model || "",
     category: camera?.category || "",
     fullDayRate: camera?.fullDayRate || 0,
-    sixHoursRate: camera?.sixHoursRate || 0,
+    oneHoursRate: camera?.oneHoursRate || 0,
     quantity: camera?.quantity || 1,
     available: camera?.available || 1,
     description: camera?.description || "",
@@ -499,7 +519,7 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
           <Label>Giá thuê (VNĐ)</Label>
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { key: "sixHoursRate", label: "Trong ngày (6h)" },
+              { key: "oneHoursRate", label: "Theo giờ" },
               { key: "fullDayRate", label: "1 ngày" },
             ].map(({ key, label }) => (
               <div key={key}>

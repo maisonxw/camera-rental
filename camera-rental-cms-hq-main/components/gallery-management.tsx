@@ -3,21 +3,19 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage"
-import { ref as dbRef, set, get, remove } from "firebase/database"
-import { storage, database } from "@/lib/firebase"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Upload, Trash2, ImageIcon, ExternalLink } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { supabase } from "@/lib/supabase"
 
 interface GalleryImage {
   id: string
   url: string
   name: string
-  uploadedAt: string
+  uploaded_at: string
 }
 
 export function GalleryManagement() {
@@ -32,17 +30,13 @@ export function GalleryManagement() {
 
   const loadImages = async () => {
     try {
-      const galleryRef = dbRef(database, "gallery")
-      const snapshot = await get(galleryRef)
+      const { data, error } = await supabase
+        .from("gallery")
+        .select("*")
+        .order("uploaded_at", { ascending: false })
 
-      if (snapshot.exists()) {
-        const data = snapshot.val()
-        const imageList = Object.keys(data).map((key) => ({
-          id: key,
-          ...data[key],
-        }))
-        setImages(imageList.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()))
-      }
+      if (error) throw error
+      setImages(data || [])
     } catch (error) {
       console.error("Error loading images:", error)
       toast({
@@ -65,19 +59,29 @@ export function GalleryManagement() {
         const file = files[i]
         const timestamp = Date.now()
         const fileName = `${timestamp}_${file.name}`
-        const storageRef = ref(storage, `gallery/${fileName}`)
+        const filePath = `gallery/${fileName}`
 
-        // Upload file to Firebase Storage
-        await uploadBytes(storageRef, file)
-        const url = await getDownloadURL(storageRef)
+        // 1. Upload file to Supabase Storage
+        const { error: uploadError } = await supabase.storage
+          .from("gallery")
+          .upload(fileName, file)
 
-        // Save metadata to Realtime Database
-        const imageId = `img_${timestamp}_${i}`
-        await set(dbRef(database, `gallery/${imageId}`), {
-          url,
-          name: file.name,
-          uploadedAt: new Date().toISOString(),
-        })
+        if (uploadError) throw uploadError
+
+        // 2. Get Public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from("gallery")
+          .getPublicUrl(fileName)
+
+        // 3. Save metadata to PostgreSQL
+        const { error: dbError } = await supabase
+          .from("gallery")
+          .insert({
+            url: publicUrl,
+            name: file.name,
+          })
+
+        if (dbError) throw dbError
       }
 
       toast({
@@ -86,11 +90,11 @@ export function GalleryManagement() {
       })
 
       loadImages()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error uploading:", error)
       toast({
         title: "Lỗi",
-        description: "Không thể upload ảnh",
+        description: error.message || "Không thể upload ảnh",
         variant: "destructive",
       })
     } finally {
@@ -102,15 +106,22 @@ export function GalleryManagement() {
     if (!confirm(`Xóa ảnh "${image.name}"?`)) return
 
     try {
-      // Delete from Storage
-      const fileName = image.url.split("/").pop()?.split("?")[0]
+      // 1. Delete from Storage
+      const fileName = image.url.split("/").pop()
       if (fileName) {
-        const storageRef = ref(storage, `gallery/${decodeURIComponent(fileName)}`)
-        await deleteObject(storageRef)
+        const { error: storageError } = await supabase.storage
+          .from("gallery")
+          .remove([fileName])
+        if (storageError) throw storageError
       }
 
-      // Delete from Database
-      await remove(dbRef(database, `gallery/${image.id}`))
+      // 2. Delete from Database
+      const { error: dbError } = await supabase
+        .from("gallery")
+        .delete()
+        .eq("id", image.id)
+
+      if (dbError) throw dbError
 
       toast({
         title: "Đã xóa",
@@ -118,11 +129,11 @@ export function GalleryManagement() {
       })
 
       loadImages()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting:", error)
       toast({
         title: "Lỗi",
-        description: "Không thể xóa ảnh",
+        description: error.message || "Không thể xóa ảnh",
         variant: "destructive",
       })
     }

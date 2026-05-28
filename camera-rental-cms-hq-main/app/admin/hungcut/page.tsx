@@ -6,12 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { auth } from "@/firebase.config";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { useGlobalErrorLogger } from "@/hooks/useGlobalErrorLogger";
+import { supabase } from "@/lib/supabase";
 
 export default function AdminLoginPage() {
-  useGlobalErrorLogger();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,12 +21,17 @@ export default function AdminLoginPage() {
     setError("");
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      // Có thể kiểm tra custom claim admin nếu muốn
-      localStorage.setItem("adminAuth", "true");
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError) throw authError;
+
+      // Đăng nhập thành công, Supabase sẽ tự quản lý Session/JWT
       router.push("/admin");
-    } catch {
-      setError("Email hoặc mật khẩu không đúng");
+    } catch (err: any) {
+      setError(err.message || "Email hoặc mật khẩu không đúng");
     } finally {
       setLoading(false);
     }

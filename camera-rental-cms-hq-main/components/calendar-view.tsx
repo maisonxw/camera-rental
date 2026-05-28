@@ -1,8 +1,6 @@
 "use client";
-
 import { useRef, useEffect, useMemo, useState } from "react";
-import { ref, onValue } from "firebase/database";
-import { db } from "@/firebase.config";
+import { supabase } from "@/lib/supabase";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,7 +53,7 @@ interface Booking {
   status: BookingStatus;
   createdAt?: string;
   notes?: string;
-  statusChangeLogs?: Record<string, { status: BookingStatus; timestamp: string }>;
+  statusChangeLogs?: any;
   __logs?: StatusLog[];
 }
 
@@ -118,41 +116,28 @@ export function CalendarView() {
     dayEnd.setHours(23, 59, 59, 999);
 
     const activeBookings = bookings.filter((b) => {
-      // 1. Bắt buộc có dữ liệu cần thiết (bỏ qua nếu thiếu → tránh crash)
       if (!b || !b.startDate || !b.endDate || !b.cameraId || !b.customerName) return false;
-
-      // 2. Chỉ count các status đang "chiếm máy" (bỏ status lạ hoặc không xác định)
       if (!ACTIVE_STATUSES.includes(b.status)) return false;
-
-      // 3. Kiểm tra ngày hợp lệ (start > end → bỏ qua, dữ liệu lỗi)
       const start = normalizeToDate(b.startDate);
       const end = normalizeToDate(b.endDate);
       if (start > end) return false;
-
-      // 4. Kiểm tra overlap với ngày target (chuẩn cho multi-day, same-day)
       return start <= dayEnd && end >= dayStart;
     });
 
-    // Máy đang thuê: unique cameraId (chuẩn, không trùng máy)
     const uniqueCameras = new Set(activeBookings.map(b => b.cameraId)).size;
-
-    // Khách đang thuê: unique bằng tên + sđt (xử lý trùng tên nhưng khác người, nếu thiếu phone dùng email)
     const uniqueCustomers = new Set(
       activeBookings.map(b => {
         const name = (b.customerName || "").trim().toLowerCase();
         const phone = (b.customerPhone || "").trim();
         const email = (b.customerEmail || "").trim().toLowerCase();
-        return name ? `${name}|${phone || email || b.id}` : b.id; // fallback id nếu thiếu hết
+        return name ? `${name}|${phone || email || b.id}` : b.id;
       })
     ).size;
-
-    // Tổng đơn đang hoạt động (full count, không unique)
-    const totalBookings = activeBookings.length;
 
     return {
       totalCameras: uniqueCameras,
       totalCustomers: uniqueCustomers,
-      totalBookings,
+      totalBookings: activeBookings.length,
     };
   };
 
@@ -173,50 +158,45 @@ export function CalendarView() {
     }
   }, [viewMode, activeDay]);
 
-  // Load bookings from Firebase
+  // Load bookings from Supabase
   useEffect(() => {
-    const bookingsRef = ref(db, "bookings");
-    const unsub = onValue(bookingsRef, (snap) => {
-      if (!snap.exists()) {
-        setBookings([]);
-        return;
-      }
-      const data = snap.val();
-      const list: Booking[] = Object.entries(data).map(([id, v]: [string, any]) => {
-        const b = { id, ...v } as Booking;
-        const logsObj = v.statusChangeLogs;
-        if (logsObj && typeof logsObj === "object") {
-          b.__logs = Object.entries(logsObj).map(([lid, lv]: [string, any]) => {
-            let ts = lv.changedAt || lv.timestamp || lv;
-            let dateVal: Date;
-            if (!ts) dateVal = new Date(0);
-            else if (typeof ts === "object" && "seconds" in ts) dateVal = new Date(ts.seconds * 1000);
-            else if (typeof ts === "number") dateVal = new Date(ts < 1e12 ? ts * 1000 : ts);
-            else if (typeof ts === "string") {
-              const parsed = parseISO(ts);
-              dateVal = isNaN(parsed.getTime()) ? new Date(0) : parsed;
-            } else dateVal = new Date(0);
-            return {
-              id: lid,
-              status: lv.newStatus || lv.status || "unknown",
-              timestamp: dateVal.toISOString(),
-            };
-          }).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-        } else {
-          b.__logs = [];
-        }
-        return b;
-      });
-      setBookings(list);
-      try { localStorage.setItem("bookings", JSON.stringify(list)); } catch { }
-    }, (error) => {
-      console.error("Firebase error:", error);
+    const loadBookings = async () => {
       try {
-        const saved = localStorage.getItem("bookings");
-        if (saved) setBookings(JSON.parse(saved));
-      } catch { }
-    });
-    return () => unsub();
+        const { data, error } = await supabase
+          .from('bookings')
+          .select('*')
+
+        if (error) throw error
+
+        const list: Booking[] = (data || []).map((v: any) => {
+          const b = { ...v } as Booking;
+          if (v.statusChangeLogs && typeof v.statusChangeLogs === "object") {
+            b.__logs = Object.entries(v.statusChangeLogs).map(([lid, lv]: [string, any]) => ({
+              id: lid,
+              status: lv.status || "unknown",
+              timestamp: lv.timestamp || lv.changedAt || new Date(0).toISOString()
+            })).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+          } else {
+            b.__logs = [];
+          }
+          return b;
+        });
+        setBookings(list);
+      } catch (error) {
+        console.error("Lỗi Supabase Calendar:", error);
+      }
+    };
+
+    loadBookings();
+
+    const channel = supabase
+      .channel('calendar-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, loadBookings)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Calendar generation

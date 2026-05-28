@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { get, ref, onValue, push } from "firebase/database"
-import { db } from "@/firebase.config"
+
+import { supabase } from "@/lib/supabase"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,8 +26,7 @@ interface CameraType {
   brand: string
   model: string
   category: string
-  dailyRate: number
-  sixHoursRate: number
+  oneHoursRate: number
   fullDayRate: number
   isBooked: boolean
   available: number
@@ -39,6 +38,7 @@ interface CameraType {
 
 interface BookingForm {
   cameraId: string
+  bookingMode: "hourly" | "daily"
   startDate: Date | null
   startTime?: string
   endDate: Date | null
@@ -85,6 +85,10 @@ const timesOverlap = (es: string, ee: string, ns: string, ne: string) => {
   return !(neh <= esh || nsh >= eeh)
 }
 
+const isHourlyPeriod = (period: BookedPeriod) => {
+  return isSameDay(period.startDate, period.endDate) && period.startTime !== "00:00" && period.endTime !== "23:59"
+}
+
 export function PublicBooking() {
   const [brandFilter, setBrandFilter] = useState<string>("all")
   const [modelFilter, setModelFilter] = useState<string>("all")
@@ -92,6 +96,7 @@ export function PublicBooking() {
   const [selectedCamera, setSelectedCamera] = useState<CameraType | null>(null)
   const [bookingForm, setBookingForm] = useState<BookingForm>({
     cameraId: "",
+    bookingMode: "hourly",
     startDate: null,
     endDate: null,
     customerName: "",
@@ -126,64 +131,72 @@ export function PublicBooking() {
     return () => clearTimeout(timer)
   }, [showSuccess])
 
-  // Fetch all active cameras
+  // Fetch all active cameras from Supabase
   useEffect(() => {
-    const camerasRef = ref(db, "cameras")
-
-    const unsubscribe = onValue(camerasRef, (snapshot) => {
-      const camerasData = snapshot.exists() ? snapshot.val() : {}
-
-      const cameraList = Object.entries(camerasData)
-        .map(([id, camValue]) => {
-          const cam = camValue as Omit<CameraType, "id">
-          return { id, ...cam }
-        })
-        .filter((c) => c.status === "active" && c.available === 1)
-
-      setCameras(cameraList)
-    })
-  }, [])
+    const fetchCameras = async () => {
+      const { data, error } = await supabase.from('cameras').select('*');
+      if (error) {
+        console.error('Error fetching cameras:', error);
+        return;
+      }
+      const cameraList = (data || [])
+        .filter((c: any) => c.status === 'active' && c.available === 1)
+        .map((c: any) => ({ id: c.id, ...c }));
+      setCameras(cameraList);
+    };
+    fetchCameras();
+  }, []);
 
   // Fetch all bookings and compute booked dates per camera
   // Fetch all bookings and compute booked periods per camera (modified)
-  useEffect(() => {
-    const bookingsRef = ref(db, "bookings")
-
-    const unsubscribe = onValue(bookingsRef, (snapshot) => {
-      const bookingsData = snapshot.exists() ? snapshot.val() : {}
-      const bookedMap: Record<string, BookedPeriod[]> = {}
-
-      Object.values(bookingsData).forEach((b: any) => {
-        if (!b || !["pending", "confirmed", "active", "overtime"].includes(b.status)) return
-        if (!b.startDate || !b.endDate) return // Skip invalid
-
-        const cameraId = b.cameraId
-        if (!bookedMap[cameraId]) bookedMap[cameraId] = []
-
-        bookedMap[cameraId].push({
-          startDate: new Date(b.startDate),
-          endDate: new Date(b.endDate),
-          startTime: b.startTime || '00:00', // Default full day if missing
-          endTime: b.endTime || '23:59',
-          status: b.status
-        })
-      })
-
-      setBookedPeriodsByCamera(bookedMap)
-    })
-
-    return () => unsubscribe()
-  }, [])
+  // Fetch all bookings and compute booked periods per camera (Supabase)
+useEffect(() => {
+  const fetchBookings = async () => {
+    const { data, error } = await supabase.from('bookings').select('*');
+    if (error) {
+      console.error('Error fetching bookings:', error);
+      return;
+    }
+    const bookedMap: Record<string, BookedPeriod[]> = {};
+    const datesSet = new Set<string>();
+    (data ?? []).forEach((b: any) => {
+      if (!b || !["pending", "confirmed", "active", "overtime"].includes(b.status)) return;
+      if (!b.startDate || !b.endDate) return; // Skip invalid
+      const cameraId = b.cameraId;
+      if (!bookedMap[cameraId]) bookedMap[cameraId] = [];
+      bookedMap[cameraId].push({
+        startDate: new Date(b.startDate),
+        endDate: new Date(b.endDate),
+        startTime: b.startTime || '00:00', // Default full day if missing
+        endTime: b.endTime || '23:59',
+        status: b.status,
+      });
+      // Populate booked dates set for UI disabling
+      const start = normalizeDate(b.startDate);
+      const end = normalizeDate(b.endDate);
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        datesSet.add(new Date(d).toDateString());
+      }
+    });
+    setBookedPeriodsByCamera(bookedMap);
+    setBookedDates(Array.from(datesSet).map(ds => new Date(ds)));
+  };
+  fetchBookings();
+}, []);
 
   // Filter available cameras based on selected dates and times (modified)
   useEffect(() => {
-    if (!bookingForm.startDate || !bookingForm.endDate || !bookingForm.startTime || !bookingForm.endTime) {
+    if (!bookingForm.startDate || !bookingForm.startTime || !bookingForm.endTime) {
       setAvailableCameras([])
       return
     }
 
     const selectedStart = normalizeDate(bookingForm.startDate)
-    const selectedEnd = normalizeDate(bookingForm.endDate)
+    const selectedEnd = normalizeDate(
+      bookingForm.bookingMode === "hourly"
+        ? bookingForm.startDate
+        : bookingForm.endDate || bookingForm.startDate
+    )
     const selectedStartTime = bookingForm.startTime
     const selectedEndTime = bookingForm.endTime
 
@@ -195,8 +208,10 @@ export function PublicBooking() {
 
         if (selectedEnd < pStart || selectedStart > pEnd) return false // No date overlap
 
-        // If multi-day or different days, consider overlap
-        if (!isSameDay(selectedStart, selectedEnd) || !isSameDay(pStart, pEnd)) return true
+        if (bookingForm.bookingMode === "daily") return true
+
+        // A full-day/multi-day booking blocks that date entirely. Hourly bookings only block overlapping hours.
+        if (!isHourlyPeriod(period)) return true
 
         // Same day: check times
         return timesOverlap(period.startTime, period.endTime, selectedStartTime, selectedEndTime)
@@ -206,7 +221,7 @@ export function PublicBooking() {
     })
 
     setAvailableCameras(filtered)
-  }, [bookingForm.startDate, bookingForm.endDate, bookingForm.startTime, bookingForm.endTime, cameras, bookedPeriodsByCamera])
+  }, [bookingForm.bookingMode, bookingForm.startDate, bookingForm.endDate, bookingForm.startTime, bookingForm.endTime, cameras, bookedPeriodsByCamera])
 
   const handleCameraSelect = (camera: CameraType) => {
     setSelectedCamera(camera)
@@ -234,12 +249,13 @@ export function PublicBooking() {
   ]
 
   const isEndTimeDisabled = (endHour: number) => {
-    if (!bookingForm.startTime || !bookingForm.startDate || !bookingForm.endDate)
+    if (!bookingForm.startTime || !bookingForm.startDate || (bookingForm.bookingMode === "daily" && !bookingForm.endDate))
       return false
 
     const startHour = Number(bookingForm.startTime.split(":")[0])
     const sameDay =
-      bookingForm.startDate.getTime() === bookingForm.endDate.getTime()
+      bookingForm.bookingMode === "hourly" ||
+      normalizeDate(bookingForm.startDate).getTime() === normalizeDate(bookingForm.endDate || bookingForm.startDate).getTime()
 
     if (sameDay && endHour <= startHour) return true
 
@@ -247,7 +263,7 @@ export function PublicBooking() {
   }
 
   const handleDateSelect = () => {
-    if (!bookingForm.startDate || !bookingForm.endDate) {
+    if (!bookingForm.startDate || (bookingForm.bookingMode === "daily" && !bookingForm.endDate)) {
       toast({ title: "Lỗi", description: "Vui lòng chọn ngày", variant: "destructive" })
       return
     }
@@ -277,7 +293,7 @@ export function PublicBooking() {
   }
 
   const handleConfirmSubmit = async () => {
-    if (!selectedCamera || !bookingForm.startDate || !bookingForm.endDate) {
+    if (!selectedCamera || !bookingForm.startDate || (bookingForm.bookingMode === "daily" && !bookingForm.endDate)) {
       toast({
         title: "Lỗi",
         description: "Thiếu thông tin đặt thuê, vui lòng thử lại",
@@ -296,7 +312,7 @@ export function PublicBooking() {
         cameraId: selectedCamera.id,
         cameraName: selectedCamera.name,
         startDate: format(bookingForm.startDate, "yyyy-MM-dd"),
-        endDate: format(bookingForm.endDate, "yyyy-MM-dd"),
+        endDate: format(bookingForm.bookingMode === "hourly" ? bookingForm.startDate : bookingForm.endDate!, "yyyy-MM-dd"),
         startTime: bookingForm.startTime || "",
         endTime: bookingForm.endTime || "",
         totalDays: calculateTotalDays(),
@@ -308,7 +324,7 @@ export function PublicBooking() {
         depositMethod: bookingForm.depositMethod
       }
 
-      await push(ref(db, "bookings"), newBooking)
+      await supabase.from('bookings').insert([newBooking]);
       setShowSuccess(true)
       resetForm()
       setTimeout(() => {
@@ -336,6 +352,7 @@ export function PublicBooking() {
     setSelectedCamera(null)
     setBookingForm({
       cameraId: "",
+      bookingMode: "hourly",
       startDate: null,
       endDate: null,
       startTime: "",
@@ -357,7 +374,7 @@ export function PublicBooking() {
       bookingForm.customerEmail.trim() !== "" &&
       bookingForm.customerPhone.trim() !== "" &&
       bookingForm.startDate &&
-      bookingForm.endDate &&
+      (bookingForm.bookingMode === "hourly" || bookingForm.endDate) &&
       /^[0-9]{9,11}$/.test(bookingForm.customerPhone)
       // /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(bookingForm.customerEmail)
     )
@@ -367,26 +384,42 @@ export function PublicBooking() {
   const isDayValid = () => {
     return (
       bookingForm.startDate &&
-      bookingForm.endDate &&
+      (bookingForm.bookingMode === "hourly" || bookingForm.endDate) &&
       bookingForm.startTime &&
       bookingForm.endTime
     )
   }
 
+  const handleBookingModeSwitch = (mode: BookingForm["bookingMode"]) => {
+    setBookingForm((prev) => ({
+      ...prev,
+      bookingMode: mode,
+      endDate: mode === "hourly" ? prev.startDate : null,
+      startTime: "",
+      endTime: "",
+    }))
+    setAvailableCameras([])
+  }
+
+  // Fetch payment info from Supabase settings table
   useEffect(() => {
     const fetchPaymentInfo = async () => {
       try {
-        const snapshot = await get(ref(db, "settings"))
-        if (snapshot.exists()) {
-          setPaymentInfo(snapshot.val() as PaymentInfo)
+        const { data, error } = await supabase.from('settings').select('*').single();
+        if (error) {
+          console.error('Error fetching payment info:', error);
+          return;
+        }
+        if (data) {
+          setPaymentInfo(data as PaymentInfo);
         }
       } catch (error) {
-        console.error("Lỗi khi lấy payment info:", error)
+        console.error('Lỗi khi lấy payment info:', error);
       }
-    }
+    };
+    fetchPaymentInfo();
+  }, []);
 
-    fetchPaymentInfo()
-  }, [])
 
   const stepsConfig = [
     { key: "dates", label: "Chọn ngày", icon: CalendarIcon },
@@ -428,15 +461,18 @@ export function PublicBooking() {
   const calculateTotalDays = () => {
     if (
       !bookingForm.startDate ||
-      !bookingForm.endDate ||
+      (bookingForm.bookingMode === "daily" && !bookingForm.endDate) ||
       !bookingForm.startTime ||
       !bookingForm.endTime
     ) {
       return 0
     }
 
+    const endDate = bookingForm.bookingMode === "hourly" ? bookingForm.startDate : bookingForm.endDate
+    if (!endDate) return 0
+
     const diffDate = Math.ceil(
-      (normalizeDate(bookingForm.endDate).getTime() - normalizeDate(bookingForm.startDate).getTime()) /
+      (normalizeDate(endDate).getTime() - normalizeDate(bookingForm.startDate).getTime()) /
       (1000 * 60 * 60 * 24)
     ) + 1
     return diffDate
@@ -445,7 +481,7 @@ export function PublicBooking() {
   const calculateTotalHours = () => {
     if (
       !bookingForm.startDate ||
-      !bookingForm.endDate ||
+      (bookingForm.bookingMode === "daily" && !bookingForm.endDate) ||
       !bookingForm.startTime ||
       !bookingForm.endTime
     ) {
@@ -458,7 +494,11 @@ export function PublicBooking() {
     const startDateTime = new Date(bookingForm.startDate)
     startDateTime.setHours(sh, sm, 0, 0)
 
-    const endDateTime = new Date(bookingForm.endDate)
+    const endDateTime = new Date(
+      bookingForm.bookingMode === "hourly"
+        ? bookingForm.startDate
+        : bookingForm.endDate || bookingForm.startDate
+    )
     endDateTime.setHours(eh, em, 0, 0)
 
     if (endDateTime <= startDateTime) {
@@ -470,25 +510,21 @@ export function PublicBooking() {
   }
 
   const getPricingInfo = () => {
-    const hours = calculateTotalHours()
-    if (hours === null || hours === undefined || hours === 0 || !selectedCamera) {
+    if (!selectedCamera) {
       return { rate: 0, label: "", total: 0 }
     }
-    let rate: number
-    let label: string
 
-    if (hours > 6 && selectedCamera.fullDayRate > 0) {
-      rate = selectedCamera.fullDayRate
-      label = "1 ngày trở lên"
-    } else {
-      rate = selectedCamera.sixHoursRate || 0
-      label = "Trong ngày"
+    if (bookingForm.bookingMode === "daily") {
+      const days = calculateTotalDays()
+      const rate = selectedCamera.fullDayRate || 0
+      return { rate, label: "Theo ngày", total: days * rate }
     }
 
-    const days = Math.ceil(hours / 24)
-    const total = days * rate
+    const hours = calculateTotalHours()
+    if (!hours) return { rate: 0, label: "", total: 0 }
 
-    return { rate, label, total }
+    const hourlyRate = selectedCamera.oneHoursRate || 0
+    return { rate: hourlyRate, label: "Theo giờ", total: Math.ceil(hours) * hourlyRate }
   }
 
   const calculateTotalAmount = () => {
@@ -560,6 +596,26 @@ export function PublicBooking() {
           </CardHeader>
 
           <CardContent className="space-y-8">
+            <div className="flex justify-center">
+              <div className="grid grid-cols-2 gap-1 rounded-2xl border bg-muted/50 p-1 w-full max-w-sm">
+                <Button
+                  type="button"
+                  variant={bookingForm.bookingMode === "hourly" ? "default" : "ghost"}
+                  className="rounded-xl font-bold"
+                  onClick={() => handleBookingModeSwitch("hourly")}
+                >
+                  Theo giờ
+                </Button>
+                <Button
+                  type="button"
+                  variant={bookingForm.bookingMode === "daily" ? "default" : "ghost"}
+                  className="rounded-xl font-bold"
+                  onClick={() => handleBookingModeSwitch("daily")}
+                >
+                  Theo ngày
+                </Button>
+              </div>
+            </div>
 
             {/* Legend */}
             <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
@@ -606,16 +662,13 @@ export function PublicBooking() {
                           setBookingForm((prev) => ({
                             ...prev,
                             startDate: date || null,
-                            endDate: null,
+                            endDate: prev.bookingMode === "hourly" ? date || null : null,
                           }));
                           setIsPopoverOpen(false);
                         }}
                         disabled={(date) => {
-                          const isBooked = bookedDates.some(
-                            (d) => d.toDateString() === date.toDateString()
-                          );
                           const isPast = date < new Date(new Date().setHours(0, 0, 0, 0));
-                          return isBooked || isPast;
+                          return isPast;
                         }}
                         modifiers={{ booked: bookedDates }}
                         modifiersStyles={{
@@ -662,10 +715,13 @@ export function PublicBooking() {
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
+                        disabled={bookingForm.bookingMode === "hourly"}
                         className="w-full justify-start text-left text-sm sm:text-base truncate"
                       >
                         <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
-                        {bookingForm.endDate
+                        {bookingForm.bookingMode === "hourly" && bookingForm.startDate
+                          ? new Date(bookingForm.startDate).toLocaleDateString("vi-VN")
+                          : bookingForm.endDate
                           ? new Date(bookingForm.endDate).toLocaleDateString("vi-VN")
                           : "Ngày trả"}
                       </Button>
@@ -685,10 +741,8 @@ export function PublicBooking() {
                         disabled={(date) => {
                           const isBeforeStart =
                             bookingForm.startDate && date < bookingForm.startDate;
-                          const isBooked = bookedDates.some(
-                            (d) => d.toDateString() === date.toDateString()
-                          );
-                          return isBeforeStart || isBooked;
+                          const isPast = date < new Date(new Date().setHours(0, 0, 0, 0));
+                          return isBeforeStart || isPast;
                         }}
                         modifiers={{ booked: bookedDates }}
                         modifiersStyles={{
@@ -895,8 +949,8 @@ export function PublicBooking() {
 
                         <div className="grid grid-cols-2 gap-2 pt-2">
                           <div className="bg-muted/50 p-2 rounded text-center">
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase">6 Tiếng</p>
-                            <p className="text-sm font-bold">{camera.sixHoursRate?.toLocaleString("vi-VN")}đ</p>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase">Theo Giờ</p>
+                            <p className="text-sm font-bold">{camera.oneHoursRate?.toLocaleString("vi-VN")}đ</p>
                           </div>
                           <div className="bg-primary/5 p-2 rounded text-center border border-primary/10">
                             <p className="text-[10px] font-bold text-primary uppercase">Cả Ngày</p>

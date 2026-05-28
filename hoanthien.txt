@@ -1,0 +1,35 @@
+NHẬT KÝ HOÀN THIỆN HỆ THỐNG CAMERA RENTAL CMS (PHẦN DATABASE)
+
+I. CƠ SỞ DỮ LIỆU (DATABASE):
+1. HẠ TẦNG DATABASE (QUAN TRỌNG NHẤT):
+   - Đã loại bỏ hoàn toàn Firebase Realtime Database.
+   - Chuyển sang PostgreSQL (Supabase) với cấu trúc bảng quan hệ (Relational Schema).
+   - Thiết lập bảng `cameras`: Lưu trữ máy ảnh với các kiểu dữ liệu chuẩn (UUID, BigInt, JSONB).
+   - Thiết lập bảng `bookings`: Lưu trữ đơn hàng với Khóa ngoại (Foreign Key) liên kết trực tiếp sang bảng máy ảnh.
+   - Thiết lập bảng `settings`: Lưu trữ thông tin thanh toán (Ngân hàng, QR Code).
+
+2. CÁC THÀNH PHẦN ĐÃ DI TRÚ (MIGRATED):
+   - Quản lý máy ảnh (CameraManagement): Hỗ trợ CRUD (Thêm, Sửa, Xóa, Liệt kê) hoàn toàn trên SQL.
+   - Đặt hàng công khai (PublicBooking): Khách hàng truy vấn máy còn trống và tạo đơn hàng trực tiếp vào Supabase.
+   - Quản lý đơn hàng (OrderManagement): 
+     + Admin có thể xem danh sách đơn hàng theo thời gian thực.
+     + Hỗ trợ CHỈNH SỬA THỦ CÔNG trạng thái đơn hàng (Manual Status Management).
+     + Tự động tính toán lại số lượng máy khả dụng trong kho khi đơn hàng thay đổi trạng thái.
+   - Bảng tin (BookingDashboard): Hiển thị thống kê doanh thu, tổng đơn hàng từ Supabase.
+   - Lịch thuê máy (CalendarView): Hiển thị lịch trình bận/trống của máy ảnh từ dữ liệu SQL.
+   - Cài đặt (SettingsImage): Cho phép Admin cập nhật thông tin ngân hàng vào Database.
+
+3. TỐI ƯU HÓA UX/UI & LOGIC:
+   - Sửa lỗi lệch trạng thái đơn hàng: Đảm bảo nhãn hiển thị (Badge) khớp 100% với dữ liệu Database.
+   - Phản hồi tức thì (Optimistic Updates): Đơn hàng biến mất ngay khi nhấn Xóa mà không cần reload trang.
+   - Realtime: Cấu hình Supabase Realtime để trang Admin tự động cập nhật đơn mới khi khách vừa đặt xong.
+
+4. BẢO MẬT (SECURITY):
+   - Thiết lập Row Level Security (RLS): Phân quyền cụ thể ai được đọc, ai được ghi vào từng bảng.
+
+II. BẢO MẬT & XÁC THỰC (AUTHENTICATION): DONE ✅
+   - Đã loại bỏ hoàn toàn cơ chế kiểm tra localStorage ("adminAuth") không an toàn.
+   - Triển khai Supabase Auth (JWT-based): Sử dụng Email và Mật khẩu thực để xác thực người dùng.
+   - Hệ thống Middleware (Server-side): Tự động kiểm tra Token (JWT) ở "cửa ngõ" Server. Nếu không có Token hợp lệ, người dùng sẽ bị chặn truy cập vào toàn bộ các trang /admin.
+   - Row Level Security (RLS): Cấu hình trực tiếp trên Database để chỉ cho phép tài khoản Admin đã đăng nhập mới có quyền Thêm, Sửa, Xóa dữ liệu máy ảnh và đơn hàng. Khách hàng chỉ có quyền Xem và Đặt máy.
+   - Bảo vệ Token: Token được quản lý tự động và an toàn thông qua Cookie/Headers bởi Supabase Auth Helpers.

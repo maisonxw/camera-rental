@@ -1,8 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { ref, onValue, update, push, remove, get } from "firebase/database"
-import { db } from "@/firebase.config"
+import { supabase } from "@/lib/supabase"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -136,37 +135,36 @@ export function OrderManagement() {
 
   // --- realtime load bookings ---
   useEffect(() => {
-    const bookingsRef = ref(db, "bookings")
-    const unsub = onValue(
-      bookingsRef,
-      (snapshot) => {
-        if (snapshot.exists()) {
-          const data: Record<string, Omit<Booking, "id">> = snapshot.val()
-          const list: Booking[] = Object.entries(data).map(([id, v]) => ({ id, ...(v as any) }))
-          setBookings(list)
-        } else {
-          setBookings([])
-        }
+    const loadBookings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('bookings')
+          .select('*')
+          .order('createdAt', { ascending: false })
+
+        if (error) throw error
+        setBookings(data as Booking[])
         setLoading(false)
-      },
-      (err) => {
-        console.error("Realtime booking listener error:", err)
+      } catch (err) {
+        console.error("Lỗi tải bookings:", err)
         setLoading(false)
         toast({
           title: "Lỗi kết nối",
           description: "Không thể tải danh sách đơn hàng",
           variant: "destructive",
         })
-      },
-    )
+      }
+    }
+
+    loadBookings()
+
+    const channel = supabase
+      .channel('order-mgmt-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, loadBookings)
+      .subscribe()
 
     return () => {
-      // onValue returns an unsubscribe function
-      try {
-        unsub()
-      } catch (e) {
-        // fallback: nothing
-      }
+      supabase.removeChannel(channel)
     }
   }, [toast])
 
@@ -182,9 +180,9 @@ export function OrderManagement() {
 
   // --- memoized filteredBookings (no duplicated state) ---
   const filteredBookings = useMemo(() => {
-      let filtered = statusFilter === "all"
-        ? bookings.filter(b => b.status !== "cancelled")
-        : bookings
+    let filtered = statusFilter === "all"
+      ? bookings.filter(b => b.status !== "cancelled")
+      : bookings
 
 
     if (searchTerm) {
@@ -208,56 +206,58 @@ export function OrderManagement() {
     return filtered
   }, [bookings, searchTerm, statusFilter])
 
-  // --- helper: update camera available in RTDB ---
   const updateCameraAvailability = async (cameraId: string, change: number) => {
     if (!cameraId) return
     try {
-      const cameraRef = ref(db, `cameras/${cameraId}`)
-      const snap = await get(cameraRef)
-      if (!snap.exists()) return
-      const cam: any = snap.val()
+      const { data: cam, error: fetchError } = await supabase
+        .from('cameras')
+        .select('quantity, available')
+        .eq('id', cameraId)
+        .single()
+
+      if (fetchError || !cam) return
+
       const quantity = Number(cam.quantity || 0)
       const available = Number(cam.available || 0)
       const newAvailable = Math.max(0, Math.min(quantity, available + change))
-      await update(cameraRef, { available: newAvailable })
+
+      await supabase
+        .from('cameras')
+        .update({ available: newAvailable })
+        .eq('id', cameraId)
     } catch (err) {
       console.error("updateCameraAvailability error:", err)
     }
   }
 
-  // --- update booking status in RTDB (and recalc camera availability) ---
   const updateBookingStatus = async (
     bookingId: string,
     status: Booking["status"],
     notes?: string | null
   ) => {
     try {
-      // lấy đơn gốc từ local state
       const orig = bookings.find((b) => b.id === bookingId)
       if (!orig) return
 
-      const bookingRef = ref(db, `bookings/${bookingId}`)
       const payload: any = { status }
-
       payload.adminNotes = notes ?? (orig.adminNotes ?? null)
 
-      // --- ghi log thay đổi trạng thái ---
-      const logRef = ref(db, `bookings/${bookingId}/statusChangeLogs`)
-      await push(logRef, {
-        oldStatus: orig.status,
-        newStatus: status,
-        changedBy: "admin",
-        changedAt: new Date().toISOString(),
-        notes: notes || null,
-      })
+      // Cập nhật trạng thái đơn vào Supabase
+      const { error } = await supabase
+        .from('bookings')
+        .update(payload)
+        .eq('id', bookingId)
 
-      // --- cập nhật trạng thái đơn ---
-      await update(bookingRef, payload)
+      if (error) throw error
 
-      // tính lại available
+      // Tính lại available
       if (orig?.cameraId) {
         await recalcCameraAvailability(orig.cameraId)
       }
+
+      // Fetch lại dữ liệu mới nhất
+      const { data } = await supabase.from('bookings').select('*').order('createdAt', { ascending: false })
+      if (data) setBookings(data as Booking[])
 
       toast({
         title: "Thành công",
@@ -273,24 +273,35 @@ export function OrderManagement() {
     }
   }
 
-  // Recalculate availability for a camera
   const recalcCameraAvailability = async (cameraId: string) => {
-    const bookingsSnap = await get(ref(db, "bookings"))
-    if (!bookingsSnap.exists()) return
+    try {
+      const { data: allBookings, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('cameraId', cameraId)
+        .in('status', ['confirmed', 'active'])
 
-    const allBookings = Object.values(bookingsSnap.val()) as Booking[]
+      if (bookingsError) throw bookingsError
 
-    const activeBookings = allBookings.filter(
-      (b) => b.cameraId === cameraId && b.status === "confirmed"
-    ).length
+      const activeCount = allBookings?.length || 0
 
-    const camSnap = await get(ref(db, `cameras/${cameraId}`))
-    if (!camSnap.exists()) return
-    const cam = camSnap.val()
+      const { data: cam, error: camError } = await supabase
+        .from('cameras')
+        .select('quantity')
+        .eq('id', cameraId)
+        .single()
 
-    const newAvailable = Math.max(0, (cam.total ?? 1) - activeBookings)
+      if (camError) throw camError
 
-    await update(ref(db, `cameras/${cameraId}`), { available: newAvailable })
+      const newAvailable = Math.max(0, (cam.quantity ?? 1) - activeCount)
+
+      await supabase
+        .from('cameras')
+        .update({ available: newAvailable })
+        .eq('id', cameraId)
+    } catch (err) {
+      console.error("recalc error:", err)
+    }
   }
 
   // --- quick helper for clicking next status button ---
@@ -382,24 +393,17 @@ export function OrderManagement() {
         <div className="flex flex-wrap sm:flex-nowrap gap-2">
           <Button
             variant="outline"
-            onClick={() => {
+            onClick={async () => {
               setLoading(true)
-              const bookingsRef = ref(db, "bookings")
-              get(bookingsRef)
-                .then((snap) => {
-                  if (snap.exists()) {
-                    const data = snap.val()
-                    const list: Booking[] = Object.entries(data).map(([id, v]) => ({ id, ...(v as any) }))
-                    setBookings(list)
-                  } else {
-                    setBookings([])
-                  }
-                })
-                .catch((err) => {
-                  console.error("Manual refresh error:", err)
-                  toast({ title: "Lỗi", description: "Không thể làm mới dữ liệu", variant: "destructive" })
-                })
-                .finally(() => setLoading(false))
+              const { data, error } = await supabase
+                .from('bookings')
+                .select('*')
+                .order('createdAt', { ascending: false })
+
+              if (!error && data) {
+                setBookings(data as Booking[])
+              }
+              setLoading(false)
             }}
           >
             <RefreshCw className="h-4 w-4 mr-2" />
@@ -476,8 +480,11 @@ export function OrderManagement() {
 
                   <div className="flex items-center gap-3">
                     <User className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-semibold">{booking.customerName}</p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold">{booking.customerName}</p>
+                        {getStatusBadge(booking.status)}
+                      </div>
                       <p className="text-sm text-muted-foreground">#{booking.id}</p>
                       <p className="text-xs text-muted-foreground">{booking.customerPhone}</p>
                     </div>
@@ -518,16 +525,6 @@ export function OrderManagement() {
                 )}
 
                 <div className="flex flex-wrap gap-2 items-center justify-end">
-                  {canUpdateStatus(booking) && (
-                    <Button
-                      size="sm"
-                      onClick={() =>
-                        handleQuickStatusUpdate(booking, STATUS_CONFIG[booking.status].nextStatus!)
-                      }
-                    >
-                      {getNextStatusLabel(booking)}
-                    </Button>
-                  )}
 
                   <Button
                     variant="outline"
@@ -591,6 +588,27 @@ export function OrderManagement() {
                   />
                 </div>
 
+                {/* Trạng thái đơn hàng */}
+                <div>
+                  <Label>Trạng thái đơn hàng</Label>
+                  <Select
+                    value={editForm.status || ""}
+                    onValueChange={(v) => setEditForm({ ...editForm, status: v as any })}
+                  >
+                    <SelectTrigger className="mt-1 w-full">
+                      <SelectValue placeholder="Chọn trạng thái" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white dark:bg-gray-900 w-full min-w-full">
+                      <SelectItem value="pending">Chờ xác nhận</SelectItem>
+                      <SelectItem value="confirmed">Đã xác nhận</SelectItem>
+                      <SelectItem value="active">Đang thuê</SelectItem>
+                      <SelectItem value="completed">Hoàn thành</SelectItem>
+                      <SelectItem value="overtime">Quá hạn</SelectItem>
+                      <SelectItem value="cancelled">Đã hủy</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {/* Phương thức cọc */}
                 <div>
                   <Label>Phương thức cọc</Label>
@@ -642,9 +660,14 @@ export function OrderManagement() {
                         endTime: editForm.endTime || "",
                         depositMethod: editForm.depositMethod || "",
                         adminNotes: editForm.adminNotes || null,
+                        status: editForm.status || "pending",
                       }
 
-                      await update(ref(db, `bookings/${selectedBooking.id}`), payload)
+                      await supabase
+                        .from('bookings')
+                        .update(payload)
+                        .eq('id', selectedBooking.id)
+
                       await recalcCameraAvailability(selectedBooking.cameraId)
 
                       toast({
@@ -702,15 +725,16 @@ export function OrderManagement() {
                       const booking = bookings.find(b => b.id === deleteTargetId)
                       if (!booking) return
 
-                
 
-                      
 
-                      const bookingRef = ref(db, `bookings/${deleteTargetId}`)
 
-                      
 
-                    await remove(bookingRef)
+                      const { error: deleteError } = await supabase
+                        .from('bookings')
+                        .delete()
+                        .eq('id', deleteTargetId)
+
+                      if (deleteError) throw deleteError
 
 
                       // recalc camera availability
@@ -720,6 +744,9 @@ export function OrderManagement() {
                       ) {
                         await recalcCameraAvailability(booking.cameraId)
                       }
+
+                      // Cập nhật lại state cục bộ ngay lập tức để nó biến mất luôn
+                      setBookings(prev => prev.filter(b => b.id !== deleteTargetId))
 
                       toast({
                         title: "Đã huỷ đơn",

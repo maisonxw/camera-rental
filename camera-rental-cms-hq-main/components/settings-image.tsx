@@ -1,8 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ref, get, set } from "firebase/database"
-import { db } from "@/firebase.config"
+import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -55,10 +54,12 @@ export function SettingsImage() {
 
   const fetchSettings = async () => {
     try {
-      const settingsRef = ref(db, "settings")
-      const snapshot = await get(settingsRef)
-      if (snapshot.exists()) {
-        const data = snapshot.val()
+      const { data, error } = await supabase
+        .from('settings')
+        .select('*')
+        .single()
+
+      if (data) {
         setQrUrl(data.qrUrl || "")
         setBankName(data.bankName || "")
         setAccountNumber(data.accountNumber || "")
@@ -86,7 +87,11 @@ export function SettingsImage() {
 
   const handleSaveSettings = async () => {
     if (!bankName || !accountNumber || !accountHolder || !paymentSyntax) {
-      console.warn("Missing fields, cannot save")
+      toast({
+        title: "Thiếu thông tin",
+        description: "Vui lòng nhập đầy đủ các trường",
+        variant: "destructive"
+      })
       return
     }
 
@@ -97,19 +102,22 @@ export function SettingsImage() {
       if (qrFile) {
         const compressedBlob = await resizeImage(qrFile)
         const base64 = await blobToBase64(compressedBlob)
-        localStorage.setItem("qrImage", base64)
         finalQrUrl = base64
         setQrUrl(finalQrUrl)
       }
 
-      const settingsRef = ref(db, "settings")
-      await set(settingsRef, {
-        qrUrl: finalQrUrl,
-        bankName,
-        accountNumber,
-        accountHolder,
-        paymentSyntax,
-      })
+      const { error } = await supabase
+        .from('settings')
+        .update({
+          qrUrl: finalQrUrl,
+          bankName,
+          accountNumber,
+          accountHolder,
+          paymentSyntax,
+        })
+        .eq('id', 1) // Cập nhật dòng có id = 1
+
+      if (error) throw error
 
       setQrFile(null)
       setPreviewUrl("")
@@ -123,6 +131,11 @@ export function SettingsImage() {
       })
     } catch (err) {
       console.error("Error saving settings:", err)
+      toast({
+        title: "Lỗi",
+        description: "Không thể lưu cài đặt",
+        variant: "destructive"
+      })
     } finally {
       setSaving(false)
     }

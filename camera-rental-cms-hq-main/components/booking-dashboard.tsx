@@ -20,8 +20,7 @@ import {
   Calendar,
 } from "lucide-react"
 
-import { db } from "@/firebase.config"
-import { ref, onValue, off } from "firebase/database"
+import { supabase } from "@/lib/supabase"
 
 interface Booking {
   id: string
@@ -64,7 +63,6 @@ const DEPOSIT_METHODS: Record<string, string> = {
   "100": "Cọc 100% giá trị máy",
 };
 
-
 export function BookingDashboard() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -72,22 +70,32 @@ export function BookingDashboard() {
   const [dateFilter, setDateFilter] = useState<string>("all")
 
   useEffect(() => {
-    const bookingsRef = ref(db, "bookings")
-    const listener = onValue(bookingsRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.val()
-        const bookingList: Booking[] = Object.entries(data).map(([id, value]: [string, any]) => ({
-          id,
-          ...(value as Omit<Booking, "id">),
-        }))
-        setBookings(bookingList)
-      } else {
-        setBookings([])
+    const loadBookings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('bookings')
+          .select('*')
+          .order('createdAt', { ascending: false })
+
+        if (error) throw error
+        if (data) setBookings(data as Booking[])
+      } catch (error) {
+        console.error("Lỗi khi tải đơn hàng:", error)
       }
-    })
+    }
+
+    loadBookings()
+
+    // Realtime subscription (Tùy chọn: Supabase hỗ trợ cập nhật thời gian thực)
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => {
+        loadBookings()
+      })
+      .subscribe()
 
     return () => {
-      off(bookingsRef, "value", listener)
+      supabase.removeChannel(channel)
     }
   }, [])
 
