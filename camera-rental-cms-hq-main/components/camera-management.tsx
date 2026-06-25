@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
+import { createPortal } from "react-dom"
 import {
   Card,
   CardContent,
@@ -46,6 +47,7 @@ interface Camera {
   description: string
   specifications: string
   status: "active" | "maintenance" | "retired"
+  mainImage?: string
   images?: string[]
 }
 
@@ -81,6 +83,12 @@ export function CameraManagement() {
   const [editingCamera, setEditingCamera] = useState<Camera | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedRates, setSelectedRates] = useState<Record<string, string>>({})
+  
+  // Gallery zoom state
+  const [galleryImages, setGalleryImages] = useState<string[]>([])
+  const [activeImageIndex, setActiveImageIndex] = useState(0)
+  const [showGallery, setShowGallery] = useState(false)
+
   const { toast } = useToast()
 
   // Load cameras from Supabase
@@ -88,12 +96,19 @@ export function CameraManagement() {
     const loadCameras = async () => {
       try {
         const { data, error } = await supabase
-          .from('cameras')
+          .from('items')
           .select('*')
           .order('created_at', { ascending: false })
 
         if (error) throw error
-        if (data) setCameras(data as Camera[])
+        if (data) {
+          // Map snake_case từ DB sang camelCase
+          const mapped = data.map((c: any) => ({
+            ...c,
+            mainImage: c.main_image || "",
+          }))
+          setCameras(mapped as Camera[])
+        }
       } catch (error) {
         console.error("Lỗi khi tải dữ liệu từ Supabase:", error)
         toast({
@@ -108,45 +123,65 @@ export function CameraManagement() {
 
   const handleAddCamera = async (data: Omit<Camera, "id">) => {
     try {
-      const { error } = await supabase
-        .from('cameras')
-        .insert([data])
+      // Tách mainImage ra — chỉ gửi khi cột tồn tại trong DB
+      const { mainImage, ...rest } = data as any
+      const payload = mainImage ? { ...rest, main_image: mainImage } : rest
 
-      if (error) throw error
+      const { error } = await supabase
+        .from('items')
+        .insert([payload])
+
+      if (error) {
+        console.error("Supabase error chi tiết:", JSON.stringify(error))
+        throw error
+      }
 
       toast({ title: "Thành công", description: "Đã thêm máy ảnh mới" })
 
       // Reload list
-      const { data: updatedList } = await supabase.from('cameras').select('*').order('created_at', { ascending: false })
-      if (updatedList) setCameras(updatedList as Camera[])
+      const { data: updatedList } = await supabase.from('items').select('*').order('created_at', { ascending: false })
+      if (updatedList) {
+        const mapped = updatedList.map((c: any) => ({ ...c, mainImage: c.main_image || "" }))
+        setCameras(mapped as Camera[])
+      }
 
       setIsAddDialogOpen(false)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Lỗi khi thêm:", error)
-      toast({ title: "Lỗi", description: "Không thể thêm máy ảnh", variant: "destructive" })
+      toast({ title: "Lỗi", description: error?.message || "Không thể thêm máy ảnh", variant: "destructive" })
     }
   }
 
   const handleEditCamera = async (data: Omit<Camera, "id">) => {
     if (!editingCamera) return
     try {
+      // Tách mainImage ra — map sang tên cột Supabase
+      const { mainImage, ...rest } = data as any
+      const payload = mainImage !== undefined ? { ...rest, main_image: mainImage } : rest
+
       const { error } = await supabase
-        .from('cameras')
-        .update(data)
+        .from('items')
+        .update(payload)
         .eq('id', editingCamera.id)
 
-      if (error) throw error
+      if (error) {
+        console.error("Supabase error chi tiết:", JSON.stringify(error))
+        throw error
+      }
 
       toast({ title: "Thành công", description: "Đã cập nhật thông tin" })
 
       // Refresh list
-      const { data: updatedList } = await supabase.from('cameras').select('*').order('created_at', { ascending: false })
-      if (updatedList) setCameras(updatedList as Camera[])
+      const { data: updatedList } = await supabase.from('items').select('*').order('created_at', { ascending: false })
+      if (updatedList) {
+        const mapped = updatedList.map((c: any) => ({ ...c, mainImage: c.main_image || "" }))
+        setCameras(mapped as Camera[])
+      }
 
       setEditingCamera(null)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Lỗi khi cập nhật:", error)
-      toast({ title: "Lỗi", description: "Cập nhật thất bại", variant: "destructive" })
+      toast({ title: "Lỗi", description: error?.message || "Cập nhật thất bại", variant: "destructive" })
     }
   }
 
@@ -154,7 +189,7 @@ export function CameraManagement() {
     if (!confirm("Xóa máy ảnh này vĩnh viễn?")) return
     try {
       const { error } = await supabase
-        .from('cameras')
+        .from('items')
         .delete()
         .eq('id', id)
 
@@ -302,22 +337,65 @@ export function CameraManagement() {
                 </p>
               </div>
 
-              {/* Ảnh */}
+              {/* Ảnh chính */}
+              {camera.mainImage ? (
+                <div
+                  className="w-full aspect-video rounded-lg overflow-hidden cursor-zoom-in relative group"
+                  onClick={() => {
+                    const allImgs = [camera.mainImage!, ...(camera.images || [])]
+                    setGalleryImages(allImgs)
+                    setActiveImageIndex(0)
+                    setShowGallery(true)
+                  }}
+                >
+                  <img
+                    src={camera.mainImage}
+                    alt={camera.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
+                  <span className="absolute top-2 left-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full backdrop-blur-sm">Ảnh chính</span>
+                </div>
+              ) : (
+                <div className="w-full aspect-video rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
+                  <Camera className="h-10 w-10 opacity-30" />
+                </div>
+              )}
+
+              {/* Ảnh mẫu */}
               {camera.images && camera.images.length > 0 && (
-                <div className="flex flex-wrap gap-1 -ml-1">
-                  {camera.images.slice(0, 3).map((img, i) => (
-                    <img
-                      key={i}
-                      src={img}
-                      alt=""
-                      className="w-12 h-12 sm:w-12 sm:h-12 object-cover rounded border flex-shrink-0"
-                    />
-                  ))}
-                  {camera.images.length > 3 && (
-                    <div className="w-12 h-12 bg-muted rounded flex items-center justify-center text-xs">
-                      +{camera.images.length - 3}
-                    </div>
-                  )}
+                <div>
+                  <p className="text-[10px] text-muted-foreground mb-1">Ảnh mẫu ({camera.images.length})</p>
+                  <div className="flex flex-wrap gap-1">
+                    {camera.images.slice(0, 4).map((img, i) => (
+                      <img
+                        key={i}
+                        src={img}
+                        alt=""
+                        className="w-12 h-12 object-cover rounded flex-shrink-0 cursor-zoom-in hover:scale-105 transition-transform"
+                        onClick={() => {
+                          const allImgs = camera.mainImage ? [camera.mainImage, ...(camera.images || [])] : (camera.images || [])
+                          const offset = camera.mainImage ? 1 : 0
+                          setGalleryImages(allImgs)
+                          setActiveImageIndex(i + offset)
+                          setShowGallery(true)
+                        }}
+                      />
+                    ))}
+                    {camera.images.length > 4 && (
+                      <div
+                        className="w-12 h-12 bg-muted rounded flex items-center justify-center text-xs cursor-zoom-in hover:bg-muted/80 transition-colors font-medium"
+                        onClick={() => {
+                          const allImgs = camera.mainImage ? [camera.mainImage, ...(camera.images || [])] : (camera.images || [])
+                          setGalleryImages(allImgs)
+                          setActiveImageIndex(5)
+                          setShowGallery(true)
+                        }}
+                      >
+                        +{camera.images.length - 4}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -380,6 +458,45 @@ export function CameraManagement() {
           </CardContent>
         </Card>
       )}
+
+      {/* Gallery Overlay */}
+      {showGallery && galleryImages.length > 0 && typeof document !== 'undefined' && createPortal(
+        <div 
+          className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center select-none"
+          onClick={() => setShowGallery(false)}
+        >
+          <button
+            onClick={() => setShowGallery(false)}
+            className="absolute top-4 right-4 w-12 h-12 sm:w-14 sm:h-14 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-white text-3xl transition shadow-lg z-50"
+          >
+            ✕
+          </button>
+
+          <div 
+            className="relative w-full max-w-6xl h-full flex items-center justify-center px-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setActiveImageIndex((prev) => prev > 0 ? prev - 1 : galleryImages.length - 1)}
+              className="absolute left-2 sm:left-4 md:left-10 top-1/2 -translate-y-1/2 w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-white/20 hover:bg-white/40 backdrop-blur-lg rounded-full flex items-center justify-center text-white transition shadow-2xl z-40"
+              style={{ display: galleryImages.length > 1 ? 'flex' : 'none' }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 md:w-14 md:h-14"><polyline points="15 18 9 12 15 6" /></svg>
+            </button>
+
+            <img src={galleryImages[activeImageIndex]} alt="gallery" className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg transition-all duration-300 shadow-2xl" />
+
+            <button
+              onClick={() => setActiveImageIndex((prev) => prev < galleryImages.length - 1 ? prev + 1 : 0)}
+              className="absolute right-2 sm:right-4 md:right-10 top-1/2 -translate-y-1/2 w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-white/20 hover:bg-white/40 backdrop-blur-lg rounded-full flex items-center justify-center text-white transition shadow-2xl z-40"
+              style={{ display: galleryImages.length > 1 ? 'flex' : 'none' }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 md:w-14 md:h-14"><polyline points="9 18 15 12 9 6" /></svg>
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }
@@ -403,44 +520,75 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
     description: camera?.description || "",
     specifications: camera?.specifications || "",
     status: camera?.status || "active",
+    mainImage: camera?.mainImage || "",
     images: camera?.images || [],
   })
 
-  const [files, setFiles] = useState<File[]>([])
-  const [previews, setPreviews] = useState<string[]>(camera?.images || [])
+  // Main image
+  const [mainImageFile, setMainImageFile] = useState<File | null>(null)
+  const [mainImagePreview, setMainImagePreview] = useState<string>(camera?.mainImage || "")
+
+  // Sample images
+  const [sampleFiles, setSampleFiles] = useState<File[]>([])
   const [uploading, setUploading] = useState(false)
 
-  const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newFiles = Array.from(e.target.files || [])
-    setFiles(prev => [...prev, ...newFiles])
-    setPreviews(prev => [...prev, ...newFiles.map(f => URL.createObjectURL(f))])
+  const handleMainImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setMainImageFile(file)
+    setMainImagePreview(URL.createObjectURL(file))
   }
 
-  const removeImage = (index: number) => {
-    const oldImagesCount = formData.images.length
+  const clearMainImage = () => {
+    setMainImageFile(null)
+    setMainImagePreview("")
+    setFormData(p => ({ ...p, mainImage: "" }))
+  }
 
-    if (index < oldImagesCount) {
-      setFormData(prev => ({
-        ...prev,
-        images: prev.images.filter((_, i) => i !== index),
-      }))
-    } else {
-      const newIndex = index - oldImagesCount
-      setFiles(prev => prev.filter((_, i) => i !== newIndex))
-    }
+  const handleSampleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newFiles = Array.from(e.target.files || [])
+    setSampleFiles(prev => [...prev, ...newFiles])
+  }
+
+  const removeSavedSampleImage = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index),
+    }))
+  }
+
+  const removeNewSampleFile = (index: number) => {
+    setSampleFiles(prev => prev.filter((_, i) => i !== index))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setUploading(true)
 
+    let mainImageUrl = formData.mainImage
     let imageUrls = formData.images || []
 
-    if (files.length > 0) {
+    // Upload main image
+    if (mainImageFile) {
       const fd = new FormData()
-      files.forEach(f => fd.append("files", f))
+      fd.append("files", mainImageFile)
       fd.append("cameraName", formData.name)
+      try {
+        const res = await fetch("/api/upload", { method: "POST", body: fd })
+        if (res.ok) {
+          const data = await res.json()
+          mainImageUrl = data.urls[0] || mainImageUrl
+        }
+      } catch (err) {
+        console.error("Upload ảnh chính lỗi:", err)
+      }
+    }
 
+    // Upload sample images
+    if (sampleFiles.length > 0) {
+      const fd = new FormData()
+      sampleFiles.forEach(f => fd.append("files", f))
+      fd.append("cameraName", formData.name)
       try {
         const res = await fetch("/api/upload", { method: "POST", body: fd })
         if (res.ok) {
@@ -448,11 +596,11 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
           imageUrls = [...imageUrls, ...data.urls]
         }
       } catch (err) {
-        console.error("Upload lỗi:", err)
+        console.error("Upload ảnh mẫu lỗi:", err)
       }
     }
 
-    onSubmit({ ...formData, images: imageUrls })
+    onSubmit({ ...formData, mainImage: mainImageUrl, images: imageUrls })
     setUploading(false)
   }
 
@@ -535,25 +683,54 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
           </div>
         </div>
 
-        {/* Ảnh máy ảnh */}
-        <div>
-          <Label>Ảnh máy ảnh</Label>
-          <Input
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handleFiles}
-            className="mt-1 w-full"
-          />
-          {previews.length > 0 && (
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mt-3">
-              {[...formData.images, ...files.map(f => URL.createObjectURL(f))].map((url, i) => (
+        {/* ===== Ảnh chính ===== */}
+        <div className="space-y-2">
+          <Label className="text-sm font-semibold">Ảnh chính</Label>
+          <p className="text-xs text-muted-foreground">Hiển thị nổi bật trên card sản phẩm</p>
+
+          {mainImagePreview ? (
+            <div className="relative group w-full aspect-video rounded-xl overflow-hidden border-2 border-primary/30">
+              <img src={mainImagePreview} alt="Ảnh chính" className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={clearMainImage}
+                  className="opacity-0 group-hover:opacity-100 transition bg-red-500 text-white rounded-full p-2 shadow-lg"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                <label className="opacity-0 group-hover:opacity-100 transition bg-white/90 text-gray-800 rounded-full p-2 shadow-lg cursor-pointer">
+                  <Edit className="h-4 w-4" />
+                  <input type="file" accept="image/*" onChange={handleMainImageFile} className="hidden" />
+                </label>
+              </div>
+              <span className="absolute top-2 left-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full">Ảnh chính</span>
+            </div>
+          ) : (
+            <label className="flex flex-col items-center justify-center w-full aspect-video rounded-xl border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 cursor-pointer transition-colors bg-muted/20 hover:bg-primary/5">
+              <Camera className="h-8 w-8 text-muted-foreground/50 mb-2" />
+              <span className="text-sm text-muted-foreground">Click để chọn ảnh chính</span>
+              <span className="text-xs text-muted-foreground/60 mt-1">PNG, JPG, WEBP</span>
+              <input type="file" accept="image/*" onChange={handleMainImageFile} className="hidden" />
+            </label>
+          )}
+        </div>
+
+        {/* ===== Ảnh mẫu ===== */}
+        <div className="space-y-2">
+          <Label className="text-sm font-semibold">Ảnh mẫu</Label>
+          <p className="text-xs text-muted-foreground">Thêm nhiều ảnh để khách hàng xem chi tiết sản phẩm</p>
+
+          {/* Existing saved sample images */}
+          {formData.images.length > 0 && (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+              {formData.images.map((url, i) => (
                 <div key={i} className="relative group rounded-lg overflow-hidden border aspect-square">
                   <img src={url} alt="" className="w-full h-full object-cover" />
                   <button
                     type="button"
-                    onClick={() => removeImage(i)}
-                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
+                    onClick={() => removeSavedSampleImage(i)}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition shadow-md"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -561,6 +738,32 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
               ))}
             </div>
           )}
+
+          {/* New files preview */}
+          {sampleFiles.length > 0 && (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+              {sampleFiles.map((f, i) => (
+                <div key={i} className="relative group rounded-lg overflow-hidden border aspect-square ring-2 ring-primary/40">
+                  <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
+                  <div className="absolute bottom-0 inset-x-0 bg-primary/80 text-white text-[9px] text-center py-0.5">Mới</div>
+                  <button
+                    type="button"
+                    onClick={() => removeNewSampleFile(i)}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition shadow-md"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Upload button */}
+          <label className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 cursor-pointer transition-colors bg-muted/10 hover:bg-primary/5 w-fit">
+            <Plus className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Thêm ảnh mẫu</span>
+            <input type="file" accept="image/*" multiple onChange={handleSampleFiles} className="hidden" />
+          </label>
         </div>
 
         {/* Mô tả & thông số kỹ thuật */}
@@ -612,3 +815,4 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
   );
 
 }
+

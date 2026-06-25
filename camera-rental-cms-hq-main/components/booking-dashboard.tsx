@@ -21,6 +21,7 @@ import {
 } from "lucide-react"
 
 import { supabase } from "@/lib/supabase"
+import { useStoreConfig } from "@/lib/store-config-context"
 
 interface Booking {
   id: string
@@ -57,13 +58,10 @@ const BOOKING_STATUSES = [
   { value: "cancelled", label: "Đã hủy", color: "bg-red-500" },
 ]
 
-const DEPOSIT_METHODS: Record<string, string> = {
-  "cccd-taisan": "CCCD + tài sản tương đương (Laptop, Macbook, xe máy...)",
-  "cccd-80": "CCCD + 80% giá trị máy",
-  "100": "Cọc 100% giá trị máy",
-};
+// Deposit methods now loaded from StoreConfig
 
 export function BookingDashboard() {
+  const { config } = useStoreConfig()
   const [bookings, setBookings] = useState<Booking[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
@@ -213,7 +211,7 @@ export function BookingDashboard() {
       <div>
         <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Dashboard đơn hàng</h2>
         <p className="text-sm sm:text-base text-muted-foreground">
-          Tổng quan về các đơn đặt thuê máy ảnh
+          {config.dashboard_subtitle}
         </p>
       </div>
 
@@ -279,7 +277,7 @@ export function BookingDashboard() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Tìm kiếm theo khách hàng, email, sđt, máy ảnh..."
+              placeholder={`Tìm kiếm theo khách hàng, email, sđt, ${config.item_name_singular}...`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -351,7 +349,7 @@ export function BookingDashboard() {
                 <div className="grid md:grid-cols-2 gap-4 gap-y-3 text-sm leading-relaxed">
                   <div>
                     <p>
-                      <span className="font-medium">Máy ảnh:</span> {booking.cameraName}
+                      <span className="font-medium capitalize">{config.item_name_singular}:</span> {booking.cameraName}
                     </p>
 
                     <p className="flex items-center gap-1">
@@ -369,8 +367,8 @@ export function BookingDashboard() {
                       <span className="font-medium">Số ngày:</span> {booking.totalDays || 0} ngày
                     </p>
                     <p>
-                      <span className="font-medium">Phương thức cọc máy:</span> {""}
-                      {DEPOSIT_METHODS[booking.depositMethod] ?? "—"}
+                      <span className="font-medium">Phương thức đặt cọc:</span> {""}
+                      {config.deposit_methods.find(m => m.value === booking.depositMethod)?.label ?? booking.depositMethod}
                     </p>
                   </div>
 

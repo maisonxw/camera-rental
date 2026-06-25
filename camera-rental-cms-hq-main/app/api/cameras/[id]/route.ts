@@ -2,7 +2,7 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
-// PUT: Cập nhật thông tin máy ảnh
+// PUT: Cập nhật thông tin sản phẩm
 export async function PUT(
   req: Request,
   { params }: { params: { id: string } }
@@ -14,7 +14,7 @@ export async function PUT(
 
   const body = await req.json()
   const { data, error } = await supabase
-    .from('cameras')
+    .from('items')
     .update(body)
     .eq('id', params.id)
     .select()
@@ -23,7 +23,7 @@ export async function PUT(
   return NextResponse.json(data[0])
 }
 
-// DELETE: Xóa máy ảnh
+// DELETE: Xóa sản phẩm
 export async function DELETE(
   req: Request,
   { params }: { params: { id: string } }
@@ -34,7 +34,7 @@ export async function DELETE(
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { error } = await supabase
-    .from('cameras')
+    .from('items')
     .delete()
     .eq('id', params.id)
 

@@ -1435,15 +1435,16 @@
         <!-- Image Gallery Section -->
         <div class="space-y-4 border-t border-pink-100 pt-4">
           <label class="text-xs font-bold text-gray-500 px-2">Quản lý ảnh</label>
-          
+
           <!-- Main Image Section -->
           <div id="gear-images-container" class="space-y-3">
             <div class="space-y-2">
               <p class="text-[10px] font-bold text-pink-600 uppercase">Ảnh Camera</p>
-              <div id="gear-main-image-preview" class="w-full h-32 bg-gray-100 border border-gray-200 rounded-xl flex items-center justify-center text-gray-400">
+              <div id="gear-main-image-preview"
+                class="w-full h-32 bg-gray-100 border border-gray-200 rounded-xl flex items-center justify-center text-gray-400">
                 <p class="text-xs">Chưa có ảnh</p>
               </div>
-              
+
               <div class="space-y-1.5">
                 <label class="text-xs font-bold text-gray-500 px-2">Thêm/Cập nhật ảnh Camera</label>
                 <input type="file" id="gear-file-input" accept="image/*"
@@ -1457,7 +1458,7 @@
               <div id="gear-secondary-images-grid" class="grid grid-cols-3 gap-2">
                 <!-- Thumbnail images will be rendered here -->
               </div>
-              
+
               <div class="space-y-1.5">
                 <label class="text-xs font-bold text-gray-500 px-2">Thêm ảnh mẫu</label>
                 <input type="file" id="gear-extra-files" accept="image/*" multiple
@@ -2886,28 +2887,28 @@
     function renderGearImagePreviews() {
       const mainPreview = document.getElementById('gear-main-image-preview');
       const secondaryGrid = document.getElementById('gear-secondary-images-grid');
-      
+
       if (!mainPreview || !secondaryGrid) return;
-      
+
       secondaryGrid.innerHTML = '';
-      
+
       if (currentGearImages.length === 0) {
         mainPreview.innerHTML = '<p class="text-xs text-gray-400">Chưa có ảnh</p>';
         mainPreview.className = 'w-full h-32 bg-gray-100 border border-gray-200 rounded-xl flex items-center justify-center text-gray-400';
         return;
       }
-      
+
       // Display main image (first image)
       mainPreview.style.backgroundImage = `url('${currentGearImages[0]}')`;
       mainPreview.style.backgroundSize = 'cover';
       mainPreview.style.backgroundPosition = 'center';
       mainPreview.className = 'w-full h-32 bg-gray-100 border border-gray-200 rounded-xl bg-cover bg-center relative';
-      
+
       // Add delete button to main image
       mainPreview.innerHTML = `<button onclick="deleteGearImage(0)" class="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition">
         <i data-lucide="x" class="w-4 h-4"></i>
       </button>`;
-      
+
       // Display secondary images (thumbnails)
       for (let i = 1; i < currentGearImages.length; i++) {
         const thumbDiv = document.createElement('div');
@@ -2915,16 +2916,16 @@
         thumbDiv.style.backgroundImage = `url('${currentGearImages[i]}')`;
         thumbDiv.style.backgroundSize = 'cover';
         thumbDiv.style.backgroundPosition = 'center';
-        
+
         thumbDiv.innerHTML = `
           <button onclick="deleteGearImage(${i})" class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
             <i data-lucide="x" class="w-5 h-5 text-white"></i>
           </button>
         `;
-        
+
         secondaryGrid.appendChild(thumbDiv);
       }
-      
+
       lucide.createIcons();
     }
 
@@ -2953,7 +2954,7 @@
     function handleGearExtraFilesChange() {
       const extraInput = document.getElementById('gear-extra-files');
       if (!extraInput.files || extraInput.files.length === 0) return;
-      
+
       let filesProcessed = 0;
       for (let i = 0; i < extraInput.files.length; i++) {
         const reader = new FileReader();
@@ -2989,11 +2990,11 @@
       document.getElementById('gear-avail').value = '1';
       document.getElementById('gear-file-input').value = '';
       document.getElementById('gear-extra-files').value = '';
-      
+
       // Reset images
       currentGearImages = [];
       renderGearImagePreviews();
-      
+
       // Add event listeners
       document.getElementById('gear-file-input').onchange = handleGearFileInputChange;
       document.getElementById('gear-extra-files').onchange = handleGearExtraFilesChange;
@@ -3020,11 +3021,11 @@
           document.getElementById('gear-avail').value = c.available || 1;
           document.getElementById('gear-file-input').value = '';
           document.getElementById('gear-extra-files').value = '';
-          
+
           // Load existing images
           currentGearImages = c.images ? [...c.images] : [];
           renderGearImagePreviews();
-          
+
           // Add event listeners
           document.getElementById('gear-file-input').onchange = handleGearFileInputChange;
           document.getElementById('gear-extra-files').onchange = handleGearExtraFilesChange;

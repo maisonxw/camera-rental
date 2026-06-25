@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Be_Vietnam_Pro } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
+import { StoreConfigProvider } from '@/lib/store-config-context'
 
 const beVietnamPro = Be_Vietnam_Pro({
   subsets: ['vietnamese'],
@@ -23,8 +24,10 @@ export default function RootLayout({
   return (
     <html lang="vi">
       <body className={`${beVietnamPro.variable} font-be-vietnam-pro`}>
-        {children}
-        <Analytics />
+        <StoreConfigProvider>
+          {children}
+          <Analytics />
+        </StoreConfigProvider>
       </body>
     </html>
   )

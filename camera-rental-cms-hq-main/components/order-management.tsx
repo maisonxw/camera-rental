@@ -35,6 +35,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
+import { useStoreConfig } from "@/lib/store-config-context"
 
 interface Booking {
   id: string
@@ -121,12 +122,7 @@ export function OrderManagement() {
   const [loading, setLoading] = useState<boolean>(true)
 
   const { toast } = useToast()
-
-  const DEPOSIT_METHODS: Record<string, string> = {
-    "cccd-taisan": "CCCD + tài sản tương đương (Laptop, Macbook, xe máy...)",
-    "cccd-80": "CCCD + 80% giá trị máy",
-    "100": "Cọc 100% giá trị máy",
-  }
+  const { config } = useStoreConfig()
 
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
@@ -210,7 +206,7 @@ export function OrderManagement() {
     if (!cameraId) return
     try {
       const { data: cam, error: fetchError } = await supabase
-        .from('cameras')
+        .from('items')
         .select('quantity, available')
         .eq('id', cameraId)
         .single()
@@ -222,7 +218,7 @@ export function OrderManagement() {
       const newAvailable = Math.max(0, Math.min(quantity, available + change))
 
       await supabase
-        .from('cameras')
+        .from('items')
         .update({ available: newAvailable })
         .eq('id', cameraId)
     } catch (err) {
@@ -286,7 +282,7 @@ export function OrderManagement() {
       const activeCount = allBookings?.length || 0
 
       const { data: cam, error: camError } = await supabase
-        .from('cameras')
+        .from('items')
         .select('quantity')
         .eq('id', cameraId)
         .single()
@@ -296,7 +292,7 @@ export function OrderManagement() {
       const newAvailable = Math.max(0, (cam.quantity ?? 1) - activeCount)
 
       await supabase
-        .from('cameras')
+        .from('items')
         .update({ available: newAvailable })
         .eq('id', cameraId)
     } catch (err) {
@@ -437,7 +433,7 @@ export function OrderManagement() {
         <div className="flex-1 w-full sm:max-w-md relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Tìm kiếm theo tên khách hàng, email, máy ảnh hoặc mã đơn..."
+            placeholder={`Tìm kiếm theo tên khách hàng, email, ${config.item_name_singular} hoặc mã đơn...`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 w-full"
@@ -506,7 +502,7 @@ export function OrderManagement() {
                     <p className="text-xs text-muted-foreground">
                       Phương thức đặt cọc:{" "}
                       <span className="font-medium text-foreground">
-                        {DEPOSIT_METHODS[booking.depositMethod] ?? "—"}
+                        {config.deposit_methods.find(m => m.value === booking.depositMethod)?.label ?? booking.depositMethod}
                       </span>
                     </p>
 
@@ -620,9 +616,11 @@ export function OrderManagement() {
                       <SelectValue placeholder="Chọn phương thức" />
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-gray-900 w-full min-w-full">
-                      <SelectItem value="cccd-taisan">CCCD + tài sản</SelectItem>
-                      <SelectItem value="cccd-80">CCCD + 80%</SelectItem>
-                      <SelectItem value="100">Cọc 100%</SelectItem>
+                      {config.deposit_methods.map(method => (
+                        <SelectItem key={method.value} value={method.value}>
+                          {method.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

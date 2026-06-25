@@ -9,8 +9,10 @@ import { CalendarView } from "@/components/calendar-view"
 import { OrderManagement } from "@/components/order-management"
 import { SettingsImage } from "@/components/settings-image"
 import { GalleryManagement } from "@/components/gallery-management"
-import { Camera, Calendar, Package, Settings, LogOut, ImageIcon } from "lucide-react"
-import { useGlobalErrorLogger } from "@/hooks/useGlobalErrorLogger";
+import { StoreCustomization } from "@/components/store-customization"
+import { Camera, Calendar, Package, Settings, LogOut, ImageIcon, Edit3 } from "lucide-react"
+import { useGlobalErrorLogger } from "@/hooks/useGlobalErrorLogger"
+import { useStoreConfig } from "@/lib/store-config-context"
 
 import { supabase } from "@/lib/supabase"
 
@@ -20,6 +22,7 @@ export default function AdminDashboard() {
   const router = useRouter()
   const [isScrollingDown, setIsScrollingDown] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const { config } = useStoreConfig();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -70,9 +73,8 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen">
       <header
-        className={`glass-strong border-b-2 border-white/30 sticky top-0 z-50 transition-transform duration-300 ${
-          isScrollingDown ? "-translate-y-full" : "translate-y-0"
-        }`}
+        className={`glass-strong border-b-2 border-white/30 sticky top-0 z-50 transition-transform duration-300 ${isScrollingDown ? "-translate-y-full" : "translate-y-0"
+          }`}
       >
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-3 md:gap-0">
@@ -82,7 +84,7 @@ export default function AdminDashboard() {
                 <Camera className="h-8 w-8 text-primary" />
               </div>
               <h1 className="text-xl sm:text-2xl font-bold text-foreground">
-                Camera Rental CMS
+                {config.admin_title}
               </h1>
             </div>
 
@@ -108,13 +110,13 @@ export default function AdminDashboard() {
       <main className="container mx-auto px-4 py-8">
         <div className="glass-card rounded-3xl p-6">
           <Tabs defaultValue="cameras" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5 glass p-2 h-auto gap-2">
+            <TabsList className="grid w-full grid-cols-6 glass p-2 h-auto gap-2">
               <TabsTrigger
                 value="cameras"
                 className="flex items-center gap-2 data-[state=active]:glass-strong data-[state=active]:shadow-lg rounded-xl py-3 transition-all"
               >
                 <Camera className="h-4 w-4" />
-                <span className="hidden sm:inline">Máy ảnh</span>
+                <span className="hidden sm:inline capitalize">{config.item_name_plural}</span>
               </TabsTrigger>
               <TabsTrigger
                 value="bookbook"
@@ -142,6 +144,13 @@ export default function AdminDashboard() {
                 className="flex items-center gap-2 data-[state=active]:glass-strong data-[state=active]:shadow-lg rounded-xl py-3 transition-all"
               >
                 <Settings className="h-4 w-4" />
+                <span className="hidden sm:inline">Phương thức thanh toán</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="customization"
+                className="flex items-center gap-2 data-[state=active]:glass-strong data-[state=active]:shadow-lg rounded-xl py-3 transition-all"
+              >
+                <Edit3 className="h-4 w-4" />
                 <span className="hidden sm:inline">Cài đặt</span>
               </TabsTrigger>
             </TabsList>
@@ -164,6 +173,10 @@ export default function AdminDashboard() {
 
             <TabsContent value="settings">
               <SettingsImage />
+            </TabsContent>
+
+            <TabsContent value="customization">
+              <StoreCustomization />
             </TabsContent>
           </Tabs>
         </div>

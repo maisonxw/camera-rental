@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { createPortal } from "react-dom"
 
 import { supabase } from "@/lib/supabase"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -134,7 +135,7 @@ export function PublicBooking() {
   // Fetch all active cameras from Supabase
   useEffect(() => {
     const fetchCameras = async () => {
-      const { data, error } = await supabase.from('cameras').select('*');
+      const { data, error } = await supabase.from('items').select('*');
       if (error) {
         console.error('Error fetching cameras:', error);
         return;
@@ -150,39 +151,39 @@ export function PublicBooking() {
   // Fetch all bookings and compute booked dates per camera
   // Fetch all bookings and compute booked periods per camera (modified)
   // Fetch all bookings and compute booked periods per camera (Supabase)
-useEffect(() => {
-  const fetchBookings = async () => {
-    const { data, error } = await supabase.from('bookings').select('*');
-    if (error) {
-      console.error('Error fetching bookings:', error);
-      return;
-    }
-    const bookedMap: Record<string, BookedPeriod[]> = {};
-    const datesSet = new Set<string>();
-    (data ?? []).forEach((b: any) => {
-      if (!b || !["pending", "confirmed", "active", "overtime"].includes(b.status)) return;
-      if (!b.startDate || !b.endDate) return; // Skip invalid
-      const cameraId = b.cameraId;
-      if (!bookedMap[cameraId]) bookedMap[cameraId] = [];
-      bookedMap[cameraId].push({
-        startDate: new Date(b.startDate),
-        endDate: new Date(b.endDate),
-        startTime: b.startTime || '00:00', // Default full day if missing
-        endTime: b.endTime || '23:59',
-        status: b.status,
-      });
-      // Populate booked dates set for UI disabling
-      const start = normalizeDate(b.startDate);
-      const end = normalizeDate(b.endDate);
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        datesSet.add(new Date(d).toDateString());
+  useEffect(() => {
+    const fetchBookings = async () => {
+      const { data, error } = await supabase.from('bookings').select('*');
+      if (error) {
+        console.error('Error fetching bookings:', error);
+        return;
       }
-    });
-    setBookedPeriodsByCamera(bookedMap);
-    setBookedDates(Array.from(datesSet).map(ds => new Date(ds)));
-  };
-  fetchBookings();
-}, []);
+      const bookedMap: Record<string, BookedPeriod[]> = {};
+      const datesSet = new Set<string>();
+      (data ?? []).forEach((b: any) => {
+        if (!b || !["pending", "confirmed", "active", "overtime"].includes(b.status)) return;
+        if (!b.startDate || !b.endDate) return; // Skip invalid
+        const cameraId = b.cameraId;
+        if (!bookedMap[cameraId]) bookedMap[cameraId] = [];
+        bookedMap[cameraId].push({
+          startDate: new Date(b.startDate),
+          endDate: new Date(b.endDate),
+          startTime: b.startTime || '00:00', // Default full day if missing
+          endTime: b.endTime || '23:59',
+          status: b.status,
+        });
+        // Populate booked dates set for UI disabling
+        const start = normalizeDate(b.startDate);
+        const end = normalizeDate(b.endDate);
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          datesSet.add(new Date(d).toDateString());
+        }
+      });
+      setBookedPeriodsByCamera(bookedMap);
+      setBookedDates(Array.from(datesSet).map(ds => new Date(ds)));
+    };
+    fetchBookings();
+  }, []);
 
   // Filter available cameras based on selected dates and times (modified)
   useEffect(() => {
@@ -722,8 +723,8 @@ useEffect(() => {
                         {bookingForm.bookingMode === "hourly" && bookingForm.startDate
                           ? new Date(bookingForm.startDate).toLocaleDateString("vi-VN")
                           : bookingForm.endDate
-                          ? new Date(bookingForm.endDate).toLocaleDateString("vi-VN")
-                          : "Ngày trả"}
+                            ? new Date(bookingForm.endDate).toLocaleDateString("vi-VN")
+                            : "Ngày trả"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-900">
@@ -813,22 +814,28 @@ useEffect(() => {
       {step === "select" && (
         <>
           {/* Gallery Overlay */}
-          {showGallery && selectedCamera && selectedCamera.images && selectedCamera.images?.length > 0 && (
-            <div className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center select-none">
+          {showGallery && selectedCamera && selectedCamera.images && selectedCamera.images?.length > 0 && typeof document !== 'undefined' && createPortal(
+            <div
+              className="fixed inset-0 bg-black/90 z-[99999] flex items-center justify-center select-none"
+              onClick={() => setShowGallery(false)}
+            >
               {/* Close */}
               <button
                 onClick={() => setShowGallery(false)}
-                className="absolute top-4 right-4 w-12 h-12 sm:w-14 sm:h-14 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-black text-3xl transition shadow-lg z-50"
+                className="absolute top-4 right-4 w-12 h-12 sm:w-14 sm:h-14 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-white text-3xl transition shadow-lg z-50"
               >
                 ✕
               </button>
 
               {/* Main image container */}
-              <div className="relative w-full max-w-6xl h-full flex items-center justify-center px-4">
+              <div
+                className="relative w-full max-w-6xl h-full flex items-center justify-center px-4"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {/* Prev button */}
                 <button
                   onClick={() => setActiveIndex((prev) => prev > 0 ? prev - 1 : (selectedCamera.images?.length ?? 0) - 1)}
-                  className="absolute left-2 sm:left-4 md:left-10 top-1/2 -translate-y-1/2 w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-white/20 hover:bg-white/40 backdrop-blur-lg rounded-full flex items-center justify-center text-black transition shadow-2xl z-40"
+                  className="absolute left-2 sm:left-4 md:left-10 top-1/2 -translate-y-1/2 w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-white/20 hover:bg-white/40 backdrop-blur-lg rounded-full flex items-center justify-center text-white transition shadow-2xl z-40"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 md:w-14 md:h-14"><polyline points="15 18 9 12 15 6" /></svg>
                 </button>
@@ -839,12 +846,13 @@ useEffect(() => {
                 {/* Next button */}
                 <button
                   onClick={() => setActiveIndex((prev) => prev < (selectedCamera.images?.length || 0) - 1 ? prev + 1 : 0)}
-                  className="absolute right-2 sm:right-4 md:right-10 top-1/2 -translate-y-1/2 w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-white/20 hover:bg-white/40 backdrop-blur-lg rounded-full flex items-center justify-center text-black transition shadow-2xl z-40"
+                  className="absolute right-2 sm:right-4 md:right-10 top-1/2 -translate-y-1/2 w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-white/20 hover:bg-white/40 backdrop-blur-lg rounded-full flex items-center justify-center text-white transition shadow-2xl z-40"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 md:w-14 md:h-14"><polyline points="9 18 15 12 9 6" /></svg>
                 </button>
               </div>
-            </div>
+            </div>,
+            document.body
           )}
 
           {/* Filter Bar */}
@@ -917,7 +925,7 @@ useEffect(() => {
                               <img
                                 src={img}
                                 alt={camera.name}
-                                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 rounded-md"
+                                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 rounded-md cursor-zoom-in"
                               />
                               {idx === 2 && extraCount > 0 && (
                                 <div className="absolute inset-0 bg-black/60 text-white text-xl font-semibold flex items-center justify-center rounded-md">
