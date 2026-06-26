@@ -1,12 +1,10 @@
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { updateSession } from './lib/supabase-middleware'
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next()
-
   try {
-    const supabase = createMiddlewareClient({ req, res })
+    const { supabase, supabaseResponse } = updateSession(req)
     const { data: { session } } = await supabase.auth.getSession()
 
     const isLoginPage = req.nextUrl.pathname.startsWith('/admin/hungcut')
@@ -21,11 +19,12 @@ export async function middleware(req: NextRequest) {
     if (isLoginPage && session) {
       return NextResponse.redirect(new URL('/admin', req.url))
     }
+
+    return supabaseResponse
   } catch (e) {
     console.error('Middleware error:', e)
+    return NextResponse.next()
   }
-
-  return res
 }
 
 export const config = {

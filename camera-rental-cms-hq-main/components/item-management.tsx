@@ -34,7 +34,7 @@ import { Plus, Edit, Trash2, Package, X, Camera } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
 
-interface Camera {
+interface Item {
   id: string
   name: string
   brand: string
@@ -51,7 +51,7 @@ interface Camera {
   images?: string[]
 }
 
-const CAMERA_CATEGORIES = [
+const ITEM_CATEGORIES = [
   "DSLR",
   "Mirrorless",
   "Film Camera",
@@ -61,7 +61,7 @@ const CAMERA_CATEGORIES = [
   "Large Format",
 ]
 
-const CameraIcon = ({ className }: { className?: string }) => (
+const ItemIcon = ({ className }: { className?: string }) => (
   <svg
     className={className}
     viewBox="0 0 24 24"
@@ -77,13 +77,14 @@ const CameraIcon = ({ className }: { className?: string }) => (
   </svg>
 )
 
-export function CameraManagement() {
-  const [cameras, setCameras] = useState<Camera[]>([])
+export function ItemManagement({ role = 'owner' }: { role?: 'owner' | 'staff' }) {
+  const isOwner = role === 'owner'
+  const [items, setItems] = useState<Item[]>([])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [editingCamera, setEditingCamera] = useState<Camera | null>(null)
+  const [editingItem, setEditingItem] = useState<Item | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedRates, setSelectedRates] = useState<Record<string, string>>({})
-  
+
   // Gallery zoom state
   const [galleryImages, setGalleryImages] = useState<string[]>([])
   const [activeImageIndex, setActiveImageIndex] = useState(0)
@@ -91,151 +92,140 @@ export function CameraManagement() {
 
   const { toast } = useToast()
 
-  // Load cameras from Supabase
-  useEffect(() => {
-    const loadCameras = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('items')
-          .select('*')
-          .order('created_at', { ascending: false })
+  const refreshItems = async () => {
+    try {
+      const res = await fetch('/api/items')
+      if (!res.ok) throw new Error('Failed to fetch items')
+      const data = await res.json()
 
-        if (error) throw error
-        if (data) {
-          // Map snake_case từ DB sang camelCase
-          const mapped = data.map((c: any) => ({
-            ...c,
-            mainImage: c.main_image || "",
-          }))
-          setCameras(mapped as Camera[])
-        }
-      } catch (error) {
-        console.error("Lỗi khi tải dữ liệu từ Supabase:", error)
-        toast({
-          title: "Lỗi kết nối",
-          description: "Không thể tải dữ liệu từ Supabase. Kiểm tra lại cấu hình .env.local",
-          variant: "destructive"
-        })
+      if (data) {
+        const mapped = data.map((c: any) => ({
+          ...c,
+          mainImage: c.main_image || "",
+        }))
+        setItems(mapped as Item[])
       }
+    } catch (error) {
+      console.error("Lỗi khi tải dữ liệu:", error)
+      toast({
+        title: "Lỗi kết nối",
+        description: "Không thể tải dữ liệu thiết bị.",
+        variant: "destructive"
+      })
     }
-    loadCameras()
+  }
+
+  // Load items from API
+  useEffect(() => {
+    refreshItems()
   }, [])
 
-  const handleAddCamera = async (data: Omit<Camera, "id">) => {
+  const handleAddItem = async (data: Omit<Item, "id">) => {
     try {
       // Tách mainImage ra — chỉ gửi khi cột tồn tại trong DB
       const { mainImage, ...rest } = data as any
       const payload = mainImage ? { ...rest, main_image: mainImage } : rest
 
-      const { error } = await supabase
-        .from('items')
-        .insert([payload])
+      const res = await fetch('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
 
-      if (error) {
-        console.error("Supabase error chi tiết:", JSON.stringify(error))
-        throw error
+      if (!res.ok) {
+        const errData = await res.json()
+        throw new Error(errData.error || 'Thêm thất bại')
       }
 
-      toast({ title: "Thành công", description: "Đã thêm máy ảnh mới" })
-
-      // Reload list
-      const { data: updatedList } = await supabase.from('items').select('*').order('created_at', { ascending: false })
-      if (updatedList) {
-        const mapped = updatedList.map((c: any) => ({ ...c, mainImage: c.main_image || "" }))
-        setCameras(mapped as Camera[])
-      }
-
+      toast({ title: "Thành công", description: "Đã thêm thiết bị mới" })
+      refreshItems()
       setIsAddDialogOpen(false)
     } catch (error: any) {
       console.error("Lỗi khi thêm:", error)
-      toast({ title: "Lỗi", description: error?.message || "Không thể thêm máy ảnh", variant: "destructive" })
+      toast({ title: "Lỗi", description: error?.message || "Không thể thêm thiết bị", variant: "destructive" })
     }
   }
 
-  const handleEditCamera = async (data: Omit<Camera, "id">) => {
-    if (!editingCamera) return
+  const handleEditItem = async (data: Omit<Item, "id">) => {
+    if (!editingItem) return
     try {
       // Tách mainImage ra — map sang tên cột Supabase
       const { mainImage, ...rest } = data as any
       const payload = mainImage !== undefined ? { ...rest, main_image: mainImage } : rest
 
-      const { error } = await supabase
-        .from('items')
-        .update(payload)
-        .eq('id', editingCamera.id)
+      const res = await fetch(`/api/items/${editingItem.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
 
-      if (error) {
-        console.error("Supabase error chi tiết:", JSON.stringify(error))
-        throw error
+      if (!res.ok) {
+        const errData = await res.json()
+        throw new Error(errData.error || 'Cập nhật thất bại')
       }
 
       toast({ title: "Thành công", description: "Đã cập nhật thông tin" })
-
-      // Refresh list
-      const { data: updatedList } = await supabase.from('items').select('*').order('created_at', { ascending: false })
-      if (updatedList) {
-        const mapped = updatedList.map((c: any) => ({ ...c, mainImage: c.main_image || "" }))
-        setCameras(mapped as Camera[])
-      }
-
-      setEditingCamera(null)
+      refreshItems()
+      setEditingItem(null)
     } catch (error: any) {
       console.error("Lỗi khi cập nhật:", error)
       toast({ title: "Lỗi", description: error?.message || "Cập nhật thất bại", variant: "destructive" })
     }
   }
 
-  const handleDeleteCamera = async (id: string) => {
-    if (!confirm("Xóa máy ảnh này vĩnh viễn?")) return
+  const handleDeleteItem = async (id: string) => {
+    if (!confirm("Xóa thiết bị này vĩnh viễn?")) return
     try {
-      const { error } = await supabase
-        .from('items')
-        .delete()
-        .eq('id', id)
+      const res = await fetch(`/api/items/${id}`, {
+        method: 'DELETE'
+      })
 
-      if (error) throw error
+      if (!res.ok) {
+        const errData = await res.json()
+        throw new Error(errData.error || 'Xóa thất bại')
+      }
 
-      toast({ title: "Thành công", description: "Đã xóa máy ảnh" })
-      setCameras(cameras.filter(c => c.id !== id))
-    } catch (error) {
+      toast({ title: "Thành công", description: "Đã xóa thiết bị" })
+      setItems(items.filter(c => c.id !== id))
+    } catch (error: any) {
       console.error("Lỗi khi xóa:", error)
-      toast({ title: "Lỗi", description: "Xóa thất bại", variant: "destructive" })
+      toast({ title: "Lỗi", description: error?.message || "Xóa thất bại", variant: "destructive" })
     }
   }
 
-  const fallbackSave = (data: Omit<Camera, "id">) => {
+  const fallbackSave = (data: Omit<Item, "id">) => {
     const newCam = { ...data, id: Date.now().toString() }
-    const updated = [...cameras, newCam]
-    setCameras(updated)
-    localStorage.setItem("cameras", JSON.stringify(updated))
+    const updated = [...items, newCam]
+    setItems(updated)
+    localStorage.setItem("items", JSON.stringify(updated))
     toast({ title: "Lưu tạm", description: "Đã lưu vào bộ nhớ cục bộ" })
     setIsAddDialogOpen(false)
   }
 
-  const fallbackUpdate = (id: string, data: Omit<Camera, "id">) => {
-    const updated = cameras.map(c => c.id === id ? { ...data, id } : c)
-    setCameras(updated)
-    localStorage.setItem("cameras", JSON.stringify(updated))
+  const fallbackUpdate = (id: string, data: Omit<Item, "id">) => {
+    const updated = items.map(c => c.id === id ? { ...data, id } : c)
+    setItems(updated)
+    localStorage.setItem("items", JSON.stringify(updated))
     toast({ title: "Lưu tạm", description: "Đã cập nhật cục bộ" })
-    setEditingCamera(null)
+    setEditingItem(null)
   }
 
   const fallbackDelete = (id: string) => {
-    const updated = cameras.filter(c => c.id !== id)
-    setCameras(updated)
-    localStorage.setItem("cameras", JSON.stringify(updated))
+    const updated = items.filter(c => c.id !== id)
+    setItems(updated)
+    localStorage.setItem("items", JSON.stringify(updated))
     toast({ title: "Lưu tạm", description: "Đã xóa cục bộ" })
   }
 
-  const getRatePrice = (camera: Camera, type: string) => {
+  const getRatePrice = (item: Item, type: string) => {
     switch (type) {
-      case "fullDayRate": return camera.fullDayRate
-      case "oneHoursRate": return camera.oneHoursRate || camera.fullDayRate
-      default: return camera.fullDayRate
+      case "fullDayRate": return item.fullDayRate
+      case "oneHoursRate": return item.oneHoursRate || item.fullDayRate
+      default: return item.fullDayRate
     }
   }
 
-  const filtered = cameras.filter(c =>
+  const filtered = items.filter(c =>
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.model.toLowerCase().includes(searchTerm.toLowerCase())
@@ -246,73 +236,76 @@ export function CameraManagement() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex-1">
-          <h2 className="text-2xl md:text-3xl font-bold text-foreground">Quản lý máy ảnh</h2>
-          <p className="text-muted-foreground text-sm md:text-base">Quản lý kho máy ảnh và thiết bị</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-foreground">Quản lý thiết bị</h2>
+          <p className="text-muted-foreground text-sm md:text-base">Quản lý kho thiết bị và thiết bị</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="flex items-center gap-2 whitespace-nowrap">
-              <Plus className="h-4 w-4" /> Thêm máy ảnh
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-lg w-full max-h-[80vh] overflow-y-auto rounded-lg p-0">
-            <DialogHeader className="sticky top-0 bg-background p-6 border-b">
-              <DialogTitle>Thêm máy ảnh mới</DialogTitle>
-              <DialogDescription>Nhập thông tin chi tiết</DialogDescription>
-            </DialogHeader>
-            <div className="p-1">
-              <CameraForm onSubmit={handleAddCamera} />
-            </div>
-          </DialogContent>
-        </Dialog>
+        {/* Nút Thêm thiết bị - Chỉ Owner */}
+        {isOwner && (
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2 whitespace-nowrap">
+                <Plus className="h-4 w-4" /> Thêm thiết bị
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-lg w-full max-h-[80vh] overflow-y-auto rounded-lg p-0">
+              <DialogHeader className="sticky top-0 bg-background p-6 border-b">
+                <DialogTitle>Thêm thiết bị mới</DialogTitle>
+                <DialogDescription>Nhập thông tin chi tiết</DialogDescription>
+              </DialogHeader>
+              <div className="p-1">
+                <ItemForm onSubmit={handleAddItem} />
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {/* Search and total */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <Input
-          placeholder="Tìm kiếm máy ảnh..."
+          placeholder="Tìm kiếm thiết bị..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           className="w-full sm:flex-1"
         />
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Package className="h-4 w-4" />
-          Tổng: {cameras.length} máy
+          Tổng: {items.length} máy
         </div>
       </div>
 
       {/* Camera cards */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filtered.map(camera => (
-          <Card key={camera.id} className="relative flex flex-col">
+        {filtered.map(item => (
+          <Card key={item.id} className="relative flex flex-col">
             <CardHeader>
               <div className="flex items-start justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2 min-w-0">
-                  <CameraIcon className="h-5 w-5 text-primary shrink-0" />
+                  <ItemIcon className="h-5 w-5 text-primary shrink-0" />
                   <div className="min-w-0">
-                    <CardTitle className="text-base md:text-lg truncate">{camera.name}</CardTitle>
-                    <CardDescription className="truncate">{camera.brand} {camera.model}</CardDescription>
+                    <CardTitle className="text-base md:text-lg truncate">{item.name}</CardTitle>
+                    <CardDescription className="truncate">{item.brand} {item.model}</CardDescription>
                   </div>
                 </div>
                 <Badge
-                  variant={camera.status === "active" ? "default" : "secondary"}
+                  variant={item.status === "active" ? "default" : "secondary"}
                   className="whitespace-nowrap"
                 >
-                  {camera.status === "active" ? "Hoạt động" : camera.status === "maintenance" ? "Bảo trì" : "Ngừng"}
+                  {item.status === "active" ? "Hoạt động" : item.status === "maintenance" ? "Bảo trì" : "Ngừng"}
                 </Badge>
               </div>
             </CardHeader>
 
             <CardContent className="space-y-4">
-              {/* Loại máy ảnh */}
+              {/* Loại thiết bị */}
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <Label className="text-muted-foreground">Loại</Label>
-                  <p className="font-medium truncate">{camera.category}</p>
+                  <p className="font-medium truncate">{item.category}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Tình trạng</Label>
-                  <p className="font-medium">{camera.available} sẵn có </p>
+                  <p className="font-medium">{item.available} sẵn có </p>
                 </div>
               </div>
 
@@ -321,8 +314,8 @@ export function CameraManagement() {
               <div>
                 <Label className="text-muted-foreground">Giá thuê</Label>
                 <Select
-                  value={selectedRates[camera.id] || "fullDayRate"}
-                  onValueChange={v => setSelectedRates(p => ({ ...p, [camera.id]: v }))}
+                  value={selectedRates[item.id] || "fullDayRate"}
+                  onValueChange={v => setSelectedRates(p => ({ ...p, [item.id]: v }))}
                 >
                   <SelectTrigger className="mt-1 w-full">
                     <SelectValue />
@@ -333,115 +326,138 @@ export function CameraManagement() {
                   </SelectContent>
                 </Select>
                 <p className="font-medium mt-1 text-primary">
-                  {getRatePrice(camera, selectedRates[camera.id] || "fullDayRate").toLocaleString("vi-VN")}đ
+                  {getRatePrice(item, selectedRates[item.id] || "fullDayRate").toLocaleString("vi-VN")}đ
                 </p>
               </div>
 
-              {/* Ảnh chính */}
-              {camera.mainImage ? (
-                <div
-                  className="w-full aspect-video rounded-lg overflow-hidden cursor-zoom-in relative group"
-                  onClick={() => {
-                    const allImgs = [camera.mainImage!, ...(camera.images || [])]
-                    setGalleryImages(allImgs)
-                    setActiveImageIndex(0)
-                    setShowGallery(true)
-                  }}
-                >
-                  <img
-                    src={camera.mainImage}
-                    alt={camera.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
-                  <span className="absolute top-2 left-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full backdrop-blur-sm">Ảnh chính</span>
-                </div>
-              ) : (
-                <div className="w-full aspect-video rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
-                  <Camera className="h-10 w-10 opacity-30" />
+              {/* Mô tả & Thông số */}
+              {(item.description || item.specifications) && (
+                <div className="text-xs text-muted-foreground space-y-1 border-t border-border pt-3">
+                  {item.description && (
+                    <div className="line-clamp-2"><span className="font-semibold text-foreground">Mô tả:</span> {item.description}</div>
+                  )}
+                  {item.specifications && (
+                    <div className="line-clamp-2"><span className="font-semibold text-foreground">Thông số:</span> {item.specifications}</div>
+                  )}
                 </div>
               )}
 
-              {/* Ảnh mẫu */}
-              {camera.images && camera.images.length > 0 && (
-                <div>
-                  <p className="text-[10px] text-muted-foreground mb-1">Ảnh mẫu ({camera.images.length})</p>
-                  <div className="flex flex-wrap gap-1">
-                    {camera.images.slice(0, 4).map((img, i) => (
-                      <img
-                        key={i}
-                        src={img}
-                        alt=""
-                        className="w-12 h-12 object-cover rounded flex-shrink-0 cursor-zoom-in hover:scale-105 transition-transform"
-                        onClick={() => {
-                          const allImgs = camera.mainImage ? [camera.mainImage, ...(camera.images || [])] : (camera.images || [])
-                          const offset = camera.mainImage ? 1 : 0
-                          setGalleryImages(allImgs)
-                          setActiveImageIndex(i + offset)
-                          setShowGallery(true)
-                        }}
-                      />
-                    ))}
-                    {camera.images.length > 4 && (
+              {/* Lấy ảnh chính thực tế, nếu không có mainImage thì lấy ảnh đầu tiên của mảng images */}
+              {(() => {
+                const actualMainImage = item.mainImage || (item.images && item.images.length > 0 ? item.images[0] : "");
+                const actualSampleImages = item.mainImage 
+                  ? (item.images || []) 
+                  : (item.images?.slice(1) || []);
+                const allImgs = actualMainImage ? [actualMainImage, ...actualSampleImages] : actualSampleImages;
+
+                return (
+                  <>
+                    {/* Ảnh chính */}
+                    {actualMainImage ? (
                       <div
-                        className="w-12 h-12 bg-muted rounded flex items-center justify-center text-xs cursor-zoom-in hover:bg-muted/80 transition-colors font-medium"
+                        className="w-full aspect-video rounded-lg overflow-hidden cursor-zoom-in relative group"
                         onClick={() => {
-                          const allImgs = camera.mainImage ? [camera.mainImage, ...(camera.images || [])] : (camera.images || [])
                           setGalleryImages(allImgs)
-                          setActiveImageIndex(5)
+                          setActiveImageIndex(0)
                           setShowGallery(true)
                         }}
                       >
-                        +{camera.images.length - 4}
+                        <img
+                          src={actualMainImage}
+                          alt={item.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
+                        <span className="absolute top-2 left-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full backdrop-blur-sm">Ảnh chính</span>
+                      </div>
+                    ) : (
+                      <div className="w-full aspect-video rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
+                        <Package className="h-10 w-10 opacity-30" />
                       </div>
                     )}
-                  </div>
+
+                    {/* Ảnh mẫu */}
+                    {actualSampleImages.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-[10px] text-muted-foreground mb-1">Ảnh mẫu ({actualSampleImages.length})</p>
+                        <div className="flex flex-wrap gap-1">
+                          {actualSampleImages.slice(0, 4).map((img, i) => (
+                            <img
+                              key={i}
+                              src={img}
+                              alt=""
+                              className="w-12 h-12 object-cover rounded flex-shrink-0 cursor-zoom-in hover:scale-105 transition-transform"
+                              onClick={() => {
+                                setGalleryImages(allImgs)
+                                setActiveImageIndex(i + 1)
+                                setShowGallery(true)
+                              }}
+                            />
+                          ))}
+                          {actualSampleImages.length > 4 && (
+                            <div
+                              className="w-12 h-12 bg-muted rounded flex items-center justify-center text-xs cursor-zoom-in hover:bg-muted/80 transition-colors font-medium"
+                              onClick={() => {
+                                setGalleryImages(allImgs)
+                                setActiveImageIndex(5)
+                                setShowGallery(true)
+                              }}
+                            >
+                              +{actualSampleImages.length - 4}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+
+              {/* Actions - Chỉ hiện với Owner */}
+              {isOwner && (
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {/* Dialog sửa thiết bị */}
+                  <Dialog open={editingItem?.id === item.id} onOpenChange={o => !o && setEditingItem(null)}>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditingItem(item)}
+                      >
+                        <Edit className="h-3 w-3 mr-1" /> Sửa
+                      </Button>
+                    </DialogTrigger>
+
+                    <DialogContent className="sm:max-w-3xl w-full max-h-[80vh] overflow-y-auto rounded-lg p-0">
+                      {/* Header */}
+                      <DialogHeader className="sticky top-0 bg-background p-4 sm:p-5 md:p-6 border-b z-10">
+                        <DialogTitle>Chỉnh sửa thiết bị</DialogTitle>
+                        <DialogDescription>Cập nhật thông tin</DialogDescription>
+                      </DialogHeader>
+
+                      {/* Form container */}
+                      <div className="p-4 sm:p-5 md:p-6">
+                        <ItemForm
+                          item={item}
+                          onSubmit={handleEditItem}
+                          isEditing
+                        />
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+
+
+                  {/* Xóa */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive"
+                    onClick={() => handleDeleteItem(item.id)}
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" /> Xóa
+                  </Button>
                 </div>
               )}
-
-              {/* Actions */}
-              <div className="flex flex-wrap gap-2 pt-2">
-                {/* Dialog sửa máy ảnh */}
-                <Dialog open={editingCamera?.id === camera.id} onOpenChange={o => !o && setEditingCamera(null)}>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditingCamera(camera)}
-                    >
-                      <Edit className="h-3 w-3 mr-1" /> Sửa
-                    </Button>
-                  </DialogTrigger>
-
-                  <DialogContent className="sm:max-w-3xl w-full max-h-[80vh] overflow-y-auto rounded-lg p-0">
-                    {/* Header */}
-                    <DialogHeader className="sticky top-0 bg-background p-4 sm:p-5 md:p-6 border-b z-10">
-                      <DialogTitle>Chỉnh sửa máy ảnh</DialogTitle>
-                      <DialogDescription>Cập nhật thông tin</DialogDescription>
-                    </DialogHeader>
-
-                    {/* Form container */}
-                    <div className="p-4 sm:p-5 md:p-6">
-                      <CameraForm
-                        camera={camera}
-                        onSubmit={handleEditCamera}
-                        isEditing
-                      />
-                    </div>
-                  </DialogContent>
-                </Dialog>
-
-
-                {/* Xóa */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-destructive"
-                  onClick={() => handleDeleteCamera(camera.id)}
-                >
-                  <Trash2 className="h-3 w-3 mr-1" /> Xóa
-                </Button>
-              </div>
             </CardContent>
           </Card>
         ))}
@@ -450,10 +466,10 @@ export function CameraManagement() {
       {filtered.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <Camera className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Không tìm thấy máy ảnh</h3>
+            <Package className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Không tìm thấy thiết bị</h3>
             <p className="text-muted-foreground">
-              {searchTerm ? "Không có kết quả phù hợp" : "Chưa có máy ảnh nào"}
+              {searchTerm ? "Không có kết quả phù hợp" : "Chưa có thiết bị nào"}
             </p>
           </CardContent>
         </Card>
@@ -461,7 +477,7 @@ export function CameraManagement() {
 
       {/* Gallery Overlay */}
       {showGallery && galleryImages.length > 0 && typeof document !== 'undefined' && createPortal(
-        <div 
+        <div
           className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center select-none"
           onClick={() => setShowGallery(false)}
         >
@@ -472,7 +488,7 @@ export function CameraManagement() {
             ✕
           </button>
 
-          <div 
+          <div
             className="relative w-full max-w-6xl h-full flex items-center justify-center px-4"
             onClick={(e) => e.stopPropagation()}
           >
@@ -501,32 +517,32 @@ export function CameraManagement() {
   )
 }
 
-interface CameraFormProps {
-  camera?: Camera
-  onSubmit: (data: Omit<Camera, "id">) => void
+interface ItemFormProps {
+  item?: Item
+  onSubmit: (data: Omit<Item, "id">) => void
   isEditing?: boolean
 }
 
-function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
+function ItemForm({ item, onSubmit, isEditing = false }: ItemFormProps) {
   const [formData, setFormData] = useState({
-    name: camera?.name || "",
-    brand: camera?.brand || "",
-    model: camera?.model || "",
-    category: camera?.category || "",
-    fullDayRate: camera?.fullDayRate || 0,
-    oneHoursRate: camera?.oneHoursRate || 0,
-    quantity: camera?.quantity || 1,
-    available: camera?.available || 1,
-    description: camera?.description || "",
-    specifications: camera?.specifications || "",
-    status: camera?.status || "active",
-    mainImage: camera?.mainImage || "",
-    images: camera?.images || [],
+    name: item?.name || "",
+    brand: item?.brand || "",
+    model: item?.model || "",
+    category: item?.category || "",
+    fullDayRate: item?.fullDayRate || 0,
+    oneHoursRate: item?.oneHoursRate || 0,
+    quantity: item?.quantity || 1,
+    available: item?.available || 1,
+    description: item?.description || "",
+    specifications: item?.specifications || "",
+    status: item?.status || "active",
+    mainImage: item?.mainImage || "",
+    images: item?.images || [],
   })
 
   // Main image
   const [mainImageFile, setMainImageFile] = useState<File | null>(null)
-  const [mainImagePreview, setMainImagePreview] = useState<string>(camera?.mainImage || "")
+  const [mainImagePreview, setMainImagePreview] = useState<string>(item?.mainImage || "")
 
   // Sample images
   const [sampleFiles, setSampleFiles] = useState<File[]>([])
@@ -610,9 +626,9 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
 
         {/* Grid thông tin cơ bản */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Tên máy ảnh */}
+          {/* Tên thiết bị */}
           <div>
-            <Label>Tên máy ảnh *</Label>
+            <Label>Tên thiết bị *</Label>
             <Input
               className="w-full"
               value={formData.name}
@@ -643,9 +659,9 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
             />
           </div>
 
-          {/* Loại máy ảnh */}
+          {/* Loại thiết bị */}
           <div>
-            <Label>Loại máy ảnh</Label>
+            <Label>Loại thiết bị</Label>
             <Select
               value={formData.category}
               onValueChange={v => setFormData(p => ({ ...p, category: v }))}
@@ -654,7 +670,7 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
                 <SelectValue placeholder="Chọn loại" />
               </SelectTrigger>
               <SelectContent className="bg-white dark:bg-gray-900 max-h-[60vh] overflow-y-auto">
-                {CAMERA_CATEGORIES.map(cat => (
+                {ITEM_CATEGORIES.map(cat => (
                   <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                 ))}
               </SelectContent>
@@ -708,7 +724,7 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
             </div>
           ) : (
             <label className="flex flex-col items-center justify-center w-full aspect-video rounded-xl border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 cursor-pointer transition-colors bg-muted/20 hover:bg-primary/5">
-              <Camera className="h-8 w-8 text-muted-foreground/50 mb-2" />
+              <Package className="h-8 w-8 text-muted-foreground/50 mb-2" />
               <span className="text-sm text-muted-foreground">Click để chọn ảnh chính</span>
               <span className="text-xs text-muted-foreground/60 mt-1">PNG, JPG, WEBP</span>
               <input type="file" accept="image/*" onChange={handleMainImageFile} className="hidden" />
@@ -806,7 +822,7 @@ function CameraForm({ camera, onSubmit, isEditing = false }: CameraFormProps) {
         {/* Footer button */}
         <DialogFooter>
           <Button type="submit" disabled={uploading} className="w-full sm:w-auto">
-            {uploading ? "Đang xử lý..." : isEditing ? "Cập nhật" : "Thêm máy ảnh"}
+            {uploading ? "Đang xử lý..." : isEditing ? "Cập nhật" : "Thêm thiết bị"}
           </Button>
         </DialogFooter>
 

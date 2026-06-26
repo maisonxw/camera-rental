@@ -33,7 +33,7 @@ export default function AdminLoginPage() {
       // Đăng nhập thành công, Supabase sẽ tự quản lý Session/JWT
       router.push("/admin");
     } catch (err: any) {
-      setError(err.message || "Email hoặc mật khẩu không đúng");
+      setError("The password or Email you've entered is incorrect.");
     } finally {
       setLoading(false);
     }
@@ -82,6 +82,11 @@ export default function AdminLoginPage() {
                   )}
                 </Button>
               </div>
+              {error && (
+                <p className="text-sm font-medium text-destructive mt-2">
+                  {error}
+                </p>
+              )}
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>

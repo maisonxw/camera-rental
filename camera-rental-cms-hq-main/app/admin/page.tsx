@@ -3,32 +3,37 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import { CameraManagement } from "@/components/camera-management"
+import { ItemManagement } from "@/components/item-management"
 import { BookingDashboard } from "@/components/booking-dashboard"
 import { CalendarView } from "@/components/calendar-view"
 import { OrderManagement } from "@/components/order-management"
 import { SettingsImage } from "@/components/settings-image"
-import { GalleryManagement } from "@/components/gallery-management"
 import { StoreCustomization } from "@/components/store-customization"
-import { Camera, Calendar, Package, Settings, LogOut, ImageIcon, Edit3 } from "lucide-react"
+import { StaffManagement } from "@/components/staff-management"
+import { Camera, Calendar, Package, Settings, LogOut, Edit3, Users } from "lucide-react"
 import { useGlobalErrorLogger } from "@/hooks/useGlobalErrorLogger"
 import { useStoreConfig } from "@/lib/store-config-context"
-
 import { supabase } from "@/lib/supabase"
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [userRole, setUserRole] = useState<'owner' | 'staff'>('staff')
   const router = useRouter()
   const [isScrollingDown, setIsScrollingDown] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
   const { config } = useStoreConfig();
+
+  useGlobalErrorLogger()
 
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
         setIsAuthenticated(true)
+        // Đọc role từ user metadata, mặc định là 'staff' nếu chưa có
+        const role = session.user.user_metadata?.role || 'staff'
+        setUserRole(role as 'owner' | 'staff')
       } else {
         router.push("/admin/hungcut")
       }
@@ -45,9 +50,9 @@ export default function AdminDashboard() {
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > lastScrollY && window.scrollY > 50) {
-        setIsScrollingDown(true); // scroll xuống -> ẩn header
+        setIsScrollingDown(true);
       } else {
-        setIsScrollingDown(false); // scroll lên -> hiện header
+        setIsScrollingDown(false);
       }
       setLastScrollY(window.scrollY);
     };
@@ -70,6 +75,10 @@ export default function AdminDashboard() {
     return null
   }
 
+  const isOwner = userRole === 'owner'
+  // Tab grid: staff = 4 cột, owner = 7 cột (thêm 3 tab: thanh toán, cài đặt, nhân viên)
+  const tabCols = isOwner ? "grid-cols-7" : "grid-cols-4"
+
   return (
     <div className="min-h-screen">
       <header
@@ -90,9 +99,17 @@ export default function AdminDashboard() {
 
             {/* Right content */}
             <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 mt-2 md:mt-0">
-              <span className="text-sm text-foreground/70 font-medium">
-                Admin Dashboard
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-foreground/70 font-medium">
+                  Admin Dashboard
+                </span>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${isOwner
+                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                    : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                  }`}>
+                  {isOwner ? 'Owner' : 'Staff'}
+                </span>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
@@ -110,7 +127,8 @@ export default function AdminDashboard() {
       <main className="container mx-auto px-4 py-8">
         <div className="glass-card rounded-3xl p-6">
           <Tabs defaultValue="cameras" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-6 glass p-2 h-auto gap-2">
+            <TabsList className={`grid w-full ${tabCols} glass p-2 h-auto gap-2`}>
+              {/* Tab Sản phẩm - Tất cả đều thấy */}
               <TabsTrigger
                 value="cameras"
                 className="flex items-center gap-2 data-[state=active]:glass-strong data-[state=active]:shadow-lg rounded-xl py-3 transition-all"
@@ -118,6 +136,8 @@ export default function AdminDashboard() {
                 <Camera className="h-4 w-4" />
                 <span className="hidden sm:inline capitalize">{config.item_name_plural}</span>
               </TabsTrigger>
+
+              {/* Tab Đơn hàng - Tất cả đều thấy */}
               <TabsTrigger
                 value="bookbook"
                 className="flex items-center gap-2 data-[state=active]:glass-strong data-[state=active]:shadow-lg rounded-xl py-3 transition-all"
@@ -125,6 +145,8 @@ export default function AdminDashboard() {
                 <Package className="h-4 w-4" />
                 <span className="hidden sm:inline">Đơn hàng</span>
               </TabsTrigger>
+
+              {/* Tab Lịch - Tất cả đều thấy */}
               <TabsTrigger
                 value="calendar"
                 className="flex items-center gap-2 data-[state=active]:glass-strong data-[state=active]:shadow-lg rounded-xl py-3 transition-all"
@@ -132,6 +154,8 @@ export default function AdminDashboard() {
                 <Calendar className="h-4 w-4" />
                 <span className="hidden sm:inline">Lịch</span>
               </TabsTrigger>
+
+              {/* Tab Quản lý - Tất cả đều thấy */}
               <TabsTrigger
                 value="orders"
                 className="flex items-center gap-2 data-[state=active]:glass-strong data-[state=active]:shadow-lg rounded-xl py-3 transition-all"
@@ -139,24 +163,37 @@ export default function AdminDashboard() {
                 <Settings className="h-4 w-4" />
                 <span className="hidden sm:inline">Quản lý</span>
               </TabsTrigger>
-              <TabsTrigger
-                value="settings"
-                className="flex items-center gap-2 data-[state=active]:glass-strong data-[state=active]:shadow-lg rounded-xl py-3 transition-all"
-              >
-                <Settings className="h-4 w-4" />
-                <span className="hidden sm:inline">Phương thức thanh toán</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="customization"
-                className="flex items-center gap-2 data-[state=active]:glass-strong data-[state=active]:shadow-lg rounded-xl py-3 transition-all"
-              >
-                <Edit3 className="h-4 w-4" />
-                <span className="hidden sm:inline">Cài đặt</span>
-              </TabsTrigger>
+
+              {/* ===== CHỈ OWNER MỚI THẤY ===== */}
+              {isOwner && (
+                <>
+                  <TabsTrigger
+                    value="settings"
+                    className="flex items-center gap-2 data-[state=active]:glass-strong data-[state=active]:shadow-lg rounded-xl py-3 transition-all"
+                  >
+                    <Settings className="h-4 w-4" />
+                    <span className="hidden sm:inline">Thanh toán</span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="customization"
+                    className="flex items-center gap-2 data-[state=active]:glass-strong data-[state=active]:shadow-lg rounded-xl py-3 transition-all"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                    <span className="hidden sm:inline">Cài đặt</span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="staff"
+                    className="flex items-center gap-2 data-[state=active]:glass-strong data-[state=active]:shadow-lg rounded-xl py-3 transition-all"
+                  >
+                    <Users className="h-4 w-4" />
+                    <span className="hidden sm:inline">Nhân viên</span>
+                  </TabsTrigger>
+                </>
+              )}
             </TabsList>
 
             <TabsContent value="cameras">
-              <CameraManagement />
+              <ItemManagement role={userRole} />
             </TabsContent>
 
             <TabsContent value="bookbook">
@@ -171,13 +208,19 @@ export default function AdminDashboard() {
               <OrderManagement />
             </TabsContent>
 
-            <TabsContent value="settings">
-              <SettingsImage />
-            </TabsContent>
-
-            <TabsContent value="customization">
-              <StoreCustomization />
-            </TabsContent>
+            {isOwner && (
+              <>
+                <TabsContent value="settings">
+                  <SettingsImage />
+                </TabsContent>
+                <TabsContent value="customization">
+                  <StoreCustomization />
+                </TabsContent>
+                <TabsContent value="staff">
+                  <StaffManagement />
+                </TabsContent>
+              </>
+            )}
           </Tabs>
         </div>
       </main>

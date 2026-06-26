@@ -34,6 +34,7 @@ interface CameraType {
   description: string
   specifications: string
   status: "active" | "maintenance" | "retired"
+  mainImage?: string
   images?: string[]
 }
 
@@ -142,7 +143,7 @@ export function PublicBooking() {
       }
       const cameraList = (data || [])
         .filter((c: any) => c.status === 'active' && c.available === 1)
-        .map((c: any) => ({ id: c.id, ...c }));
+        .map((c: any) => ({ id: c.id, ...c, mainImage: c.main_image || "" }));
       setCameras(cameraList);
     };
     fetchCameras();
@@ -814,46 +815,55 @@ export function PublicBooking() {
       {step === "select" && (
         <>
           {/* Gallery Overlay */}
-          {showGallery && selectedCamera && selectedCamera.images && selectedCamera.images?.length > 0 && typeof document !== 'undefined' && createPortal(
-            <div
-              className="fixed inset-0 bg-black/90 z-[99999] flex items-center justify-center select-none"
-              onClick={() => setShowGallery(false)}
-            >
-              {/* Close */}
-              <button
-                onClick={() => setShowGallery(false)}
-                className="absolute top-4 right-4 w-12 h-12 sm:w-14 sm:h-14 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-white text-3xl transition shadow-lg z-50"
-              >
-                ✕
-              </button>
+          {showGallery && selectedCamera && typeof document !== 'undefined' && (() => {
+            const allImages = selectedCamera.mainImage 
+              ? [selectedCamera.mainImage, ...(selectedCamera.images || [])] 
+              : (selectedCamera.images || [])
+            if (allImages.length === 0) return null
 
-              {/* Main image container */}
+            return createPortal(
               <div
-                className="relative w-full max-w-6xl h-full flex items-center justify-center px-4"
-                onClick={(e) => e.stopPropagation()}
+                className="fixed inset-0 bg-black/90 z-[99999] flex items-center justify-center select-none"
+                onClick={() => setShowGallery(false)}
               >
-                {/* Prev button */}
+                {/* Close */}
                 <button
-                  onClick={() => setActiveIndex((prev) => prev > 0 ? prev - 1 : (selectedCamera.images?.length ?? 0) - 1)}
-                  className="absolute left-2 sm:left-4 md:left-10 top-1/2 -translate-y-1/2 w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-white/20 hover:bg-white/40 backdrop-blur-lg rounded-full flex items-center justify-center text-white transition shadow-2xl z-40"
+                  onClick={() => setShowGallery(false)}
+                  className="absolute top-4 right-4 w-12 h-12 sm:w-14 sm:h-14 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-white text-3xl transition shadow-lg z-50"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 md:w-14 md:h-14"><polyline points="15 18 9 12 15 6" /></svg>
+                  ✕
                 </button>
 
-                {/* Image */}
-                <img src={selectedCamera.images[activeIndex]} alt="gallery" className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg transition-all duration-300 shadow-2xl" />
-
-                {/* Next button */}
-                <button
-                  onClick={() => setActiveIndex((prev) => prev < (selectedCamera.images?.length || 0) - 1 ? prev + 1 : 0)}
-                  className="absolute right-2 sm:right-4 md:right-10 top-1/2 -translate-y-1/2 w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-white/20 hover:bg-white/40 backdrop-blur-lg rounded-full flex items-center justify-center text-white transition shadow-2xl z-40"
+                {/* Main image container */}
+                <div
+                  className="relative w-full max-w-6xl h-full flex items-center justify-center px-4"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 md:w-14 md:h-14"><polyline points="9 18 15 12 9 6" /></svg>
-                </button>
-              </div>
-            </div>,
-            document.body
-          )}
+                  {/* Prev button */}
+                  <button
+                    onClick={() => setActiveIndex((prev) => prev > 0 ? prev - 1 : allImages.length - 1)}
+                    className="absolute left-2 sm:left-4 md:left-10 top-1/2 -translate-y-1/2 w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-white/20 hover:bg-white/40 backdrop-blur-lg rounded-full flex items-center justify-center text-white transition shadow-2xl z-40"
+                    style={{ display: allImages.length > 1 ? 'flex' : 'none' }}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 md:w-14 md:h-14"><polyline points="15 18 9 12 15 6" /></svg>
+                  </button>
+
+                  {/* Image */}
+                  <img src={allImages[activeIndex] || allImages[0]} alt="gallery" className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg transition-all duration-300 shadow-2xl" />
+
+                  {/* Next button */}
+                  <button
+                    onClick={() => setActiveIndex((prev) => prev < allImages.length - 1 ? prev + 1 : 0)}
+                    className="absolute right-2 sm:right-4 md:right-10 top-1/2 -translate-y-1/2 w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-white/20 hover:bg-white/40 backdrop-blur-lg rounded-full flex items-center justify-center text-white transition shadow-2xl z-40"
+                    style={{ display: allImages.length > 1 ? 'flex' : 'none' }}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 md:w-14 md:h-14"><polyline points="9 18 15 12 9 6" /></svg>
+                  </button>
+                </div>
+              </div>,
+              document.body
+            )
+          })()}
 
           {/* Filter Bar */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 bg-muted/30 p-4 rounded-xl border border-primary/10">
@@ -899,9 +909,10 @@ export function PublicBooking() {
               availableCameras
                 .filter(c => modelFilter === "all" || c.model === modelFilter)
                 .map((camera) => {
-                  const imageCount = camera.images?.length || 0
-                  const visibleImages = camera.images?.slice(0, 3) || []
-                  const extraCount = imageCount > 3 ? imageCount - 3 : 0
+                  const actualMainImage = camera.mainImage || (camera.images && camera.images.length > 0 ? camera.images[0] : "");
+                  const actualSampleImages = camera.mainImage 
+                    ? (camera.images || []) 
+                    : (camera.images?.slice(1) || []);
 
                   return (
                     <Card
@@ -909,35 +920,68 @@ export function PublicBooking() {
                       className="cursor-pointer hover:shadow-lg transition-all duration-300 flex flex-col border-2 hover:border-primary/50"
                       onClick={() => handleCameraSelect(camera)}
                     >
-                      <div className="grid grid-cols-3 gap-1 p-2">
-                        {visibleImages.map((img, idx) => (
-                          <div key={idx} className="relative aspect-square overflow-hidden rounded-md">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setSelectedCamera(camera)
-                                setShowGallery(true)
-                                setActiveIndex(idx)
-                              }}
-                              className="w-full h-full"
-                            >
-                              <img
-                                src={img}
-                                alt={camera.name}
-                                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 rounded-md cursor-zoom-in"
-                              />
-                              {idx === 2 && extraCount > 0 && (
-                                <div className="absolute inset-0 bg-black/60 text-white text-xl font-semibold flex items-center justify-center rounded-md">
-                                  +{extraCount}
+                      <div className="p-4 pb-0">
+                        {/* Ảnh chính */}
+                        {actualMainImage ? (
+                          <div
+                            className="w-full aspect-video rounded-lg overflow-hidden cursor-zoom-in relative group"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedCamera(camera)
+                              setShowGallery(true)
+                              setActiveIndex(0)
+                            }}
+                          >
+                            <img
+                              src={actualMainImage}
+                              alt={camera.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
+                          </div>
+                        ) : (
+                          <div className="w-full aspect-video rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
+                            <CameraIcon className="h-10 w-10 opacity-30" />
+                          </div>
+                        )}
+
+                        {/* Ảnh mẫu */}
+                        {actualSampleImages.length > 0 && (
+                          <div className="mt-2">
+                            <div className="flex flex-wrap gap-1">
+                              {actualSampleImages.slice(0, 4).map((img, idx) => (
+                                <img
+                                  key={idx}
+                                  src={img}
+                                  alt=""
+                                  className="w-12 h-12 object-cover rounded flex-shrink-0 cursor-zoom-in hover:scale-105 transition-transform"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedCamera(camera)
+                                    setShowGallery(true)
+                                    setActiveIndex(idx + 1)
+                                  }}
+                                />
+                              ))}
+                              {actualSampleImages.length > 4 && (
+                                <div
+                                  className="w-12 h-12 bg-muted rounded flex items-center justify-center text-xs cursor-zoom-in hover:bg-muted/80 transition-colors font-medium"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedCamera(camera)
+                                    setShowGallery(true)
+                                    setActiveIndex(5)
+                                  }}
+                                >
+                                  +{actualSampleImages.length - 4}
                                 </div>
                               )}
-                            </button>
+                            </div>
                           </div>
-                        ))}
+                        )}
                       </div>
 
-                      <CardHeader className="pb-2">
+                      <CardHeader className="pb-2 pt-4">
                         <div className="flex items-center gap-2">
                           <CameraIcon className="h-5 w-5 text-primary" />
                           <div>
@@ -954,6 +998,17 @@ export function PublicBooking() {
                           <Label className="text-sm font-medium">Loại máy</Label>
                           <Badge variant="secondary">{camera.category}</Badge>
                         </div>
+
+                        {(camera.description || camera.specifications) && (
+                          <div className="text-xs text-muted-foreground space-y-1 pt-1 border-t border-border mt-2">
+                            {camera.description && (
+                              <div className="line-clamp-2"><span className="font-semibold text-foreground">Mô tả:</span> {camera.description}</div>
+                            )}
+                            {camera.specifications && (
+                              <div className="line-clamp-2"><span className="font-semibold text-foreground">Thông số:</span> {camera.specifications}</div>
+                            )}
+                          </div>
+                        )}
 
                         <div className="grid grid-cols-2 gap-2 pt-2">
                           <div className="bg-muted/50 p-2 rounded text-center">
